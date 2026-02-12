@@ -1,6 +1,6 @@
 export default {
   async fetch(request, env) {
-    // CORS simples (você pode restringir depois)
+    // CORS
     const cors = {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -13,6 +13,7 @@ export default {
     }
 
     const url = new URL(request.url);
+
     if (url.pathname !== "/prioritize") {
       return new Response("Not Found", { status: 404, headers: cors });
     }
@@ -34,17 +35,44 @@ export default {
       });
     }
 
+    const clampInt = (value, min, max, fallback) => {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return fallback;
+      const i = Math.round(n);
+      if (i < min) return min;
+      if (i > max) return max;
+      return i;
+    };
+
+    const normalizeMethod = (m) => {
+      const raw = String(m || "").trim().toUpperCase();
+      const allowed = new Set(["IMPACT_EFFORT", "RICE", "MOSCOW", "GUT"]);
+      if (allowed.has(raw)) return raw;
+      return "IMPACT_EFFORT";
+    };
+
     const userName = String(body.userName || "").trim();
-    const method = String(body.method || "IMPACT_EFFORT").trim();
+    const method = normalizeMethod(body.method);
     const tasks = Array.isArray(body.tasks) ? body.tasks : [];
 
+    // Aceita "time" (front atual) e também "effort" (compatibilidade)
     const filled = tasks
-      .map((t) => ({
-        title: String(t.title || "").trim(),
-        description: String(t.description || "").trim(),
-        importance: Number(t.importance),
-        effort: Number(t.effort),
-      }))
+      .map((t) => {
+        const title = String(t.title || "").trim();
+        const description = String(t.description || "").trim();
+
+        const importance = clampInt(t.importance, 1, 5, 3);
+
+        // Compat: se vier effort, usa. Se vier time, usa.
+        const time = clampInt(
+          t.time ?? t.effort,
+          1,
+          5,
+          3
+        );
+
+        return { title, description, importance, time };
+      })
       .filter((t) => t.title && t.description);
 
     if (!userName) {
@@ -76,21 +104,20 @@ export default {
 
     const model = env.OPENAI_MODEL || "gpt-4o-mini";
 
-    // Instruções. Linguagem simples, estilo “colega de trabalho”.
     const system = `
 Você é o PriorizAI.
 Fale simples, direto e amigável.
-Considere que o usuário pode errar a escolha de importância e esforço, então use também a descrição para ajustar a análise.
+O usuário pode escolher importância e tempo errado. Então use também a descrição para ajustar sua análise com carinho.
 Não invente fatos externos. Use só o que foi informado.
-Retorne APENAS JSON, seguindo o schema.
-`;
+Retorne APENAS JSON no schema.
+`.trim();
 
     const rule = `
 Método Impacto e Esforço:
 - Faça primeiro o que ajuda mais e leva menos tempo.
-- Se algo é muito importante (prazo, gente depende, problema grande), pode subir mesmo sendo demorado.
+- Se algo é muito importante (prazo, gente depende, risco alto), pode subir mesmo sendo demorado.
 - Coisas pouco importantes e demoradas ficam por último.
-`;
+`.trim();
 
     const user = `
 Nome: ${userName}
@@ -103,13 +130,12 @@ Tarefas (JSON):
 ${JSON.stringify(filled)}
 
 Regras da resposta:
-- Entregue uma ordem final.
-- Explique de forma curta e útil.
-- Dê dicas práticas.
+- Use também a descrição para estimar o tempo real e a importância real.
+- Se a descrição indicar algo diferente do número, ajuste sem julgar.
+- Traga dicas práticas.
 - estimatedTimeSaved: inteiro de 0 a 80, realista.
-`;
+`.trim();
 
-    // Schema para o modelo responder em JSON
     const jsonSchema = {
       name: "priorizai_result",
       strict: true,
@@ -124,6 +150,7 @@ Regras da resposta:
           rankedTasks: {
             type: "array",
             minItems: 3,
+            maxItems: 10,
             items: {
               type: "object",
               additionalProperties: false,
@@ -146,27 +173,32 @@ Regras da resposta:
       },
     };
 
-    // Chamada OpenAI (Chat Completions + response_format json_schema)
-    // Referência: API de chat completions + response_format. 
-    // Retorna JSON “travado” no schema. :contentReference[oaicite:8]{index=8}
-    const resp = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${env.OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        temperature: 0.3,
-        messages: [
-          { role: "system", content: system.trim() },
-          { role: "user", content: user.trim() },
-        ],
-        response_format: { type: "json_schema", json_schema: jsonSchema },
-      }),
-    });
+    let resp;
+    try {
+      resp = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${env.OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          temperature: 0.3,
+          messages: [
+            { role: "system", content: system },
+            { role: "user", content: user },
+          ],
+          response_format: { type: "json_schema", json_schema: jsonSchema },
+        }),
+      });
+    } catch (e) {
+      return new Response(
+        JSON.stringify({ error: "Falha de rede ao chamar a IA." }),
+        { status: 500, headers: { ...cors, "Content-Type": "application/json" } }
+      );
+    }
 
-    const data = await resp.json();
+    const data = await resp.json().catch(() => ({}));
 
     if (!resp.ok) {
       return new Response(
@@ -175,7 +207,7 @@ Regras da resposta:
       );
     }
 
-    const content = data?.choices?.[0]?.message?.content;
+    const content = data?.choices?.[0]?.message?.content || "";
     let parsed;
     try {
       parsed = JSON.parse(content);
