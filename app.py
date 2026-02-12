@@ -251,7 +251,7 @@ with left:
     st.markdown('<div class="card">', unsafe_allow_html=True)
 
     st.subheader("1) Seu nome")
-    user_name = st.text_input("Obrigatório", placeholder="Ex.: Castelão")
+    user_name = st.text_input("Obrigatório", placeholder="Ex.: Felipe Castelão")
 
     st.write("")
     st.subheader("2) Tarefas")
