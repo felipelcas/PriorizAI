@@ -12,38 +12,32 @@ st.set_page_config(page_title="PrioriZÉ", page_icon="✅", layout="wide")
 st.markdown(
     """
     <style>
-      .main { background-color: #0b1220; }
-      h1, h2, h3, p, label, div, span { color: #e5e7eb !important; }
-      .stTextInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] {
-        background: rgba(17,28,54,.9) !important;
-        border: 1px solid rgba(255,255,255,0.08) !important;
-        border-radius: 12px !important;
-        color: #e5e7eb !important;
+      /* Fundo e header */
+      [data-testid="stAppViewContainer"] {
+        background: radial-gradient(1200px 600px at 30% 10%, #142045 0%, #0b1220 55%);
       }
-      .stNumberInput input {
-        background: rgba(17,28,54,.9) !important;
-        border: 1px solid rgba(255,255,255,0.08) !important;
-        border-radius: 12px !important;
-        color: #e5e7eb !important;
-      }
-      div.stButton > button[kind="primary"] {
-        background: #2563eb !important;
-        border: 1px solid rgba(255,255,255,0.14) !important;
-        border-radius: 12px !important;
-        font-weight: 800 !important;
-      }
-      div.stButton > button {
-        border-radius: 12px !important;
-        font-weight: 700 !important;
-      }
+      [data-testid="stHeader"] { background: transparent; }
+
+      /* Cards */
       .card {
         background: rgba(15,23,42,.72);
-        border: 1px solid rgba(255,255,255,0.08);
+        border: 1px solid rgba(255,255,255,0.10);
         border-radius: 14px;
         padding: 14px;
       }
-      .muted { color: #9ca3af !important; font-size: 13px; }
-      hr { border: none; border-top: 1px solid rgba(255,255,255,0.08); }
+
+      /* Botão principal com realce */
+      div.stButton > button[kind="primary"] {
+        background: #2563eb !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255,255,255,0.16) !important;
+        border-radius: 12px !important;
+        font-weight: 800 !important;
+      }
+      div.stButton > button[kind="primary"]:hover { filter: brightness(1.05); }
+
+      /* Textos auxiliares mais visíveis */
+      .muted { color: #cbd5e1 !important; font-size: 13px; }
     </style>
     """,
     unsafe_allow_html=True,
