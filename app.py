@@ -1,5 +1,7 @@
 import json
+import time
 import streamlit as st
+import streamlit.components.v1 as components
 from typing import Literal, List, Dict
 from pydantic import BaseModel, Field
 from openai import OpenAI
@@ -12,42 +14,82 @@ st.set_page_config(page_title="PrioriZÉ", page_icon="✅", layout="wide")
 st.markdown(
     """
     <style>
+      /* Layout mais compacto */
+      .block-container { padding-top: 1.2rem; padding-bottom: 1rem; max-width: 1100px; }
       [data-testid="stAppViewContainer"] {
         background: radial-gradient(1200px 600px at 30% 10%, #142045 0%, #0b1220 55%);
       }
       [data-testid="stHeader"] { background: transparent; }
 
+      /* Cards mais leves */
       .card {
-        background: rgba(15,23,42,.72);
-        border: 1px solid rgba(255,255,255,0.10);
+        background: rgba(15,23,42,.75);
+        border: none;               /* sem bordas do card */
         border-radius: 14px;
-        padding: 14px;
+        padding: 12px;
       }
-      .muted { color: #cbd5e1 !important; font-size: 13px; }
 
+      /* Tirar bordas dos inputs e também borda de foco */
+      input, textarea { box-shadow: none !important; }
+      [data-baseweb="input"] > div,
+      [data-baseweb="textarea"] > div,
+      [data-baseweb="select"] > div {
+        border: none !important;
+        box-shadow: none !important;
+        background: rgba(17,28,54,.90) !important;
+        border-radius: 12px !important;
+      }
+      [data-baseweb="input"] > div:focus-within,
+      [data-baseweb="textarea"] > div:focus-within,
+      [data-baseweb="select"] > div:focus-within {
+        outline: none !important;
+        box-shadow: none !important;
+        border: none !important;
+      }
+
+      /* Títulos internos sem “link” ao lado */
+      .section-title { font-size: 16px; font-weight: 800; margin: 0 0 8px 0; }
+      .tiny { color: #cbd5e1; font-size: 13px; margin-top: -4px; }
+      .warn { color: #fb7185; font-size: 13px; margin-top: 6px; }
+      .req { color: #ef4444; font-weight: 900; }
+
+      /* Botões */
       div.stButton > button[kind="primary"] {
         background: #2563eb !important;
         color: #ffffff !important;
-        border: 1px solid rgba(255,255,255,0.16) !important;
+        border: none !important;
+        border-radius: 12px !important;
+        font-weight: 900 !important;
+        padding: 0.7rem 0.9rem !important;
+      }
+      div.stButton > button {
         border-radius: 12px !important;
         font-weight: 800 !important;
+        border: none !important;
+        padding: 0.65rem 0.9rem !important;
       }
-      div.stButton > button { border-radius: 12px !important; font-weight: 700 !important; }
+
+      /* “Toggles” (botões de método) */
+      .method-row { margin-top: 6px; margin-bottom: 8px; }
+      .method-hint { color:#94a3b8; font-size:12px; margin-top: 6px; }
+
+      /* Separadores */
+      hr { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 10px 0; }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
 # -----------------------------
-# Modelos (Structured Outputs)
+# Modelos de resposta
 # -----------------------------
-Method = Literal["RICE", "MOSCOW", "IMPACT_EFFORT", "GUT"]
+Method = Literal["IMPACT_EFFORT", "RICE", "MOSCOW", "GUT"]
 
 class RankedItem(BaseModel):
     position: int = Field(ge=1)
     task_title: str
     explanation: str
-    key_factors: List[str]
+    key_points: List[str]
     tip: str
 
 class PriorizeResult(BaseModel):
@@ -58,79 +100,26 @@ class PriorizeResult(BaseModel):
     ordered_tasks: List[RankedItem]
 
 # -----------------------------
-# Escalas simples (texto -> número)
+# Escalas (texto -> número)
 # -----------------------------
-IMPACT = [
-    ("Muito baixo", 1),
-    ("Baixo", 2),
-    ("Médio", 3),
-    ("Alto", 4),
-    ("Muito alto", 5),
+BENEFIT = [
+    ("Quase não ajuda", 1),
+    ("Ajuda um pouco", 2),
+    ("Ajuda bem", 3),
+    ("Ajuda muito", 4),
+    ("Vai mudar bastante", 5),
 ]
-
-EFFORT = [
-    ("Muito fácil e rápido", 1),
+WORK = [
+    ("Rapidinho", 1),
     ("Fácil", 2),
-    ("Médio", 3),
-    ("Difícil", 4),
-    ("Muito difícil e demorado", 5),
+    ("Dá um trabalhinho", 3),
+    ("Trabalhoso", 4),
+    ("Muito pesado", 5),
 ]
 
-REACH = [
-    ("Só eu", 1),
-    ("Poucas pessoas", 2),
-    ("Algumas pessoas", 3),
-    ("Muitas pessoas", 4),
-    ("Muita gente", 5),
-]
-
-CONFIDENCE = [
-    ("Baixa certeza", 1),
-    ("Alguma certeza", 2),
-    ("Boa certeza", 3),
-    ("Quase certo", 4),
-    ("Certo", 5),
-]
-
-G_SEVERITY = [
-    ("Leve", 1),
-    ("Pouco grave", 2),
-    ("Grave", 3),
-    ("Muito grave", 4),
-    ("Crítico", 5),
-]
-
-U_URGENCY = [
-    ("Pode esperar", 1),
-    ("Sem pressa", 2),
-    ("Seria bom fazer logo", 3),
-    ("Urgente", 4),
-    ("Imediato", 5),
-]
-
-T_TREND = [
-    ("Não piora", 1),
-    ("Piora devagar", 2),
-    ("Piora em médio prazo", 3),
-    ("Piora rápido", 4),
-    ("Vai piorar muito rápido", 5),
-]
-
-MOSCOW = [
-    ("Obrigatório", "Must"),
-    ("Importante", "Should"),
-    ("Bom ter", "Could"),
-    ("Não agora", "Wont"),
-]
-
-def labels(options):
-    return [x[0] for x in options]
-
-def map_number(options, selected_label: str) -> int:
+def labels(options): return [x[0] for x in options]
+def to_num(options, selected_label: str) -> int:
     return int({lbl: num for (lbl, num) in options}[selected_label])
-
-def map_moscow(options, selected_label: str) -> str:
-    return {lbl: key for (lbl, key) in options}[selected_label]
 
 # -----------------------------
 # OpenAI
@@ -153,239 +142,213 @@ def call_openai_prioritize(user_name: str, method: Method, tasks_payload: List[D
     except Exception:
         pass
 
-    rules = {
-        "IMPACT_EFFORT": (
-            "Priorize primeiro o que tiver ALTO impacto e BAIXO esforço. "
-            "Depois alto impacto e alto esforço. "
-            "Evite baixo impacto e alto esforço."
-        ),
-        "RICE": "Use RICE = (reach * impact * confidence) / effort. Maior score vem primeiro.",
-        "GUT": "Use GUT = G * U * T. Maior score vem primeiro.",
-        "MOSCOW": (
-            "Ordene por categoria: Must primeiro, depois Should, depois Could, e Wont por último. "
-            "Dentro da mesma categoria, use alto impacto e baixo esforço como desempate."
-        ),
-    }
-
     system = (
-        "Você é PrioriZÉ, um assistente de priorização de tarefas. "
-        "Explique como um colega de trabalho: simples, amigável, útil e direto. "
-        "Use os nomes das tarefas para personalizar. "
-        "Não invente fatos. Use apenas os dados fornecidos. "
+        "Você é o PrioriZÉ. Fale como um colega legal, bem simples, sem palavras difíceis. "
+        "O usuário tem 16 anos. Seja claro e direto. "
+        "Use o nome do usuário e cite as tarefas para personalizar. "
+        "Não invente nada. Use só os dados fornecidos. "
         "Retorne no schema."
     )
 
+    rule = (
+        "Método Impacto e Esforço: primeiro o que AJUDA MUITO e dá POUCO TRABALHO. "
+        "Depois o que ajuda muito mesmo se der mais trabalho. "
+        "Evite o que ajuda pouco e dá muito trabalho."
+    )
+
     user = f"""
-Nome do usuário: {user_name}
-Método escolhido: {method}
+Nome: {user_name}
+Método: {method}
 
 Como aplicar:
-{rules[method]}
-
-As escalas numéricas são de 1 a 5 (baixo -> alto).
-Os campos também incluem rótulos em texto.
+{rule}
 
 Tarefas (JSON):
 {json.dumps(tasks_payload, ensure_ascii=False)}
 
-Regras de resposta:
-- Ordene somente tarefas preenchidas.
-- friendly_message: curto e levemente informal, mencionando 1 ou 2 tarefas.
-- summary: plano geral em 2 a 3 frases.
-- Para cada tarefa: explanation (2 a 5 frases), key_factors (2 a 4 itens), tip (1 frase prática).
+Regras da resposta:
+- Ordene as tarefas (position 1..N).
+- friendly_message: curto e personalizado, citando 1 ou 2 tarefas.
+- summary: 2 a 3 frases com um plano geral.
+- Para cada tarefa: explanation (2 a 4 frases), key_points (2 a 4 itens), tip (1 frase).
 - estimated_time_saved_percent: inteiro 0..80, realista.
 """
 
     resp = client.responses.parse(
         model=model,
-        input=[
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ],
+        input=[{"role": "system", "content": system}, {"role": "user", "content": user}],
         text_format=PriorizeResult,
     )
     return resp.output_parsed
 
 # -----------------------------
-# Estado da tela
+# Estado
 # -----------------------------
 if "task_count" not in st.session_state:
     st.session_state.task_count = 3
-
-if "mode" not in st.session_state:
-    st.session_state.mode = "PrioriZÉ"
-
 if "last_result" not in st.session_state:
     st.session_state.last_result = None
+if "scroll_up" not in st.session_state:
+    st.session_state.scroll_up = False
 
 # -----------------------------
-# Header
+# Cabeçalho
 # -----------------------------
 st.title("PrioriZÉ")
-st.write("Você coloca suas tarefas e eu organizo a melhor ordem para fazer.")
-st.caption("Nada é salvo. A IA só recebe o que você preencher no momento.")
+st.write("Você escreve suas tarefas. Eu coloco na melhor ordem, com um motivo fácil de entender.")
+st.caption("Nada fica salvo. Eu só uso o que você preencher agora.")
+
+# 3 opções do app (MVP só a primeira)
+top1, top2, top3 = st.columns(3)
+with top1:
+    st.button("PrioriZÉ", type="primary", use_container_width=True)
+with top2:
+    st.button("Em breve 2", disabled=True, use_container_width=True)
+with top3:
+    st.button("Em breve 3", disabled=True, use_container_width=True)
+
 st.write("")
 
-# 3 opções (MVP só a primeira)
-c1, c2, c3 = st.columns(3)
-with c1:
-    if st.button("PrioriZÉ", type="primary", use_container_width=True):
-        st.session_state.mode = "PrioriZÉ"
-with c2:
-    if st.button("Em breve 2", use_container_width=True):
-        st.session_state.mode = "Em breve 2"
-with c3:
-    if st.button("Em breve 3", use_container_width=True):
-        st.session_state.mode = "Em breve 3"
-
-if st.session_state.mode != "PrioriZÉ":
-    st.info("Essa opção ainda não está no MVP. Use PrioriZÉ por enquanto.")
-    st.stop()
-
+# -----------------------------
+# Layout principal
+# -----------------------------
 left, right = st.columns([1, 1])
 
 # -----------------------------
-# Inputs
+# RESULTADO (fica no topo do lado direito)
+# -----------------------------
+with right:
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Resultado</div>', unsafe_allow_html=True)
+
+    if st.session_state.scroll_up:
+        # Scroll pro topo quando gerar resultado (técnica com JS no container principal)
+        js = """
+        <script>
+          var body = window.parent.document.querySelector(".main");
+          if(body){ body.scrollTop = 0; window.scrollTo(0,0); }
+        </script>
+        """
+        temp = st.empty()
+        with temp:
+            components.html(js, height=0)
+            time.sleep(0.2)
+        temp.empty()
+        st.session_state.scroll_up = False
+
+    if st.session_state.last_result:
+        if "error" in st.session_state.last_result:
+            st.error(st.session_state.last_result["error"])
+        else:
+            r = st.session_state.last_result
+            st.success(r["friendly_message"])
+            st.write(r["summary"])
+            st.write(f"Tempo economizado (estimado): **{r['estimated_time_saved_percent']}%**")
+            st.write("")
+
+            for item in r["ordered_tasks"]:
+                st.markdown(f"**{item['position']}. {item['task_title']}**")
+                st.write(item["explanation"])
+                for p in item["key_points"]:
+                    st.write(f"- {p}")
+                st.caption(item["tip"])
+                st.write("")
+    else:
+        st.caption("O resultado vai aparecer aqui.")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# -----------------------------
+# ENTRADA (lado esquerdo)
 # -----------------------------
 with left:
     st.markdown('<div class="card">', unsafe_allow_html=True)
 
-    st.subheader("1) Seu nome")
-    user_name = st.text_input("Obrigatório", placeholder="Ex.: Felipe Castelão")
+    # Nome + método logo abaixo
+    st.markdown('<div class="section-title">Seu nome <span class="req">*</span></div>', unsafe_allow_html=True)
+    user_name = st.text_input("nome", label_visibility="collapsed", placeholder="Ex.: Castelão")
 
-    st.write("")
-    st.subheader("2) Tarefas")
-    st.caption("Comece com 3. Para adicionar mais, clique no botão. Até 10.")
+    st.markdown('<div class="section-title">Método de priorização</div>', unsafe_allow_html=True)
+    st.markdown('<div class="tiny">Por enquanto, só o primeiro está liberado.</div>', unsafe_allow_html=True)
 
-    # Método padrão e nomes amigáveis
-    method_label_map = {
-        "Impacto e Esforço": "IMPACT_EFFORT",
-        "RICE": "RICE",
-        "MoSCoW": "MOSCOW",
-        "GUT": "GUT",
-    }
+    # Toggles visíveis, mas só Impacto e Esforço habilitado
+    m1, m2, m3, m4 = st.columns(4)
+    with m1:
+        st.button("Impacto e Esforço", type="primary", use_container_width=True)
+    with m2:
+        st.button("RICE", disabled=True, use_container_width=True)
+    with m3:
+        st.button("MoSCoW", disabled=True, use_container_width=True)
+    with m4:
+        st.button("GUT", disabled=True, use_container_width=True)
 
-    # Guardar seleção do método em session_state para renderizar campos
-    if "method_label" not in st.session_state:
-        st.session_state.method_label = "Impacto e Esforço"
+    method: Method = "IMPACT_EFFORT"
 
-    # Render das tarefas (campos mudam conforme método atual)
+    st.markdown("<hr/>", unsafe_allow_html=True)
+
+    # Tarefas
+    st.markdown('<div class="section-title">Tarefas</div>', unsafe_allow_html=True)
+    filled_preview = 0
+
+    # Aviso logo abaixo do título (não no fim)
+    # (a validação final acontece mais abaixo)
+    st.markdown('<div class="tiny">Preencha pelo menos 3 tarefas.</div>', unsafe_allow_html=True)
+
     tasks_raw = []
     for idx in range(1, st.session_state.task_count + 1):
-        with st.expander(f"Tarefa {idx}", expanded=(idx <= 3)):
-            title = st.text_input(f"Título {idx}", key=f"title_{idx}")
+        # Primeiras 3 sempre abertas. As demais ficam em expander para não poluir.
+        container = st.container()
+        is_extra = idx > 3
+
+        if is_extra:
+            with st.expander(f"Tarefa extra {idx}", expanded=False):
+                container = st.container()
+
+        with container:
+            st.markdown(f"<div class='tiny'><b>Tarefa {idx}</b></div>", unsafe_allow_html=True)
+
+            st.markdown('O que você vai fazer <span class="req">*</span>', unsafe_allow_html=True)
+            title = st.text_input("t", key=f"title_{idx}", label_visibility="collapsed", placeholder="Ex.: Lavar a cozinha")
+
+            st.markdown('Explique rápido <span class="req">*</span>', unsafe_allow_html=True)
             desc = st.text_area(
-                f"Descrição curta {idx}",
+                "d",
                 key=f"desc_{idx}",
-                placeholder="Em 1 frase, o que é e qual resultado você quer.",
+                label_visibility="collapsed",
+                placeholder="Ex.: Lavar tudo e deixar limpo.",
+                height=80,
             )
 
-            # Campos base (sempre)
-            col1, col2 = st.columns(2)
-            with col1:
-                impact_lbl = st.selectbox(
-                    f"Impacto {idx}",
-                    options=labels(IMPACT),
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown("Quanto isso te ajuda", unsafe_allow_html=True)
+                benefit_lbl = st.selectbox(
+                    "b",
+                    options=labels(BENEFIT),
                     index=2,
-                    key=f"impact_lbl_{idx}",
+                    key=f"benefit_{idx}",
+                    label_visibility="collapsed",
                 )
-            with col2:
-                effort_lbl = st.selectbox(
-                    f"Esforço {idx}",
-                    options=labels(EFFORT),
+            with c2:
+                st.markdown("Quanto trabalho dá", unsafe_allow_html=True)
+                work_lbl = st.selectbox(
+                    "w",
+                    options=labels(WORK),
                     index=2,
-                    key=f"effort_lbl_{idx}",
+                    key=f"work_{idx}",
+                    label_visibility="collapsed",
                 )
-
-            # Campos extras por método
-            method_key: Method = method_label_map[st.session_state.method_label]
-
-            reach_lbl = None
-            conf_lbl = None
-            mos_lbl = None
-            gut_g_lbl = None
-            gut_u_lbl = None
-            gut_t_lbl = None
-
-            if method_key == "RICE":
-                st.caption("RICE precisa de Alcance e Certeza também.")
-                c3, c4 = st.columns(2)
-                with c3:
-                    reach_lbl = st.selectbox(
-                        f"Alcance {idx}",
-                        options=labels(REACH),
-                        index=2,
-                        key=f"reach_lbl_{idx}",
-                    )
-                with c4:
-                    conf_lbl = st.selectbox(
-                        f"Certeza {idx}",
-                        options=labels(CONFIDENCE),
-                        index=2,
-                        key=f"conf_lbl_{idx}",
-                    )
-
-            elif method_key == "MOSCOW":
-                st.caption("MoSCoW: escolha a importância.")
-                mos_lbl = st.selectbox(
-                    f"Importância {idx}",
-                    options=labels(MOSCOW),
-                    index=1,
-                    key=f"mos_lbl_{idx}",
-                )
-
-            elif method_key == "GUT":
-                st.caption("GUT: gravidade, urgência e tendência.")
-                g1, g2, g3 = st.columns(3)
-                with g1:
-                    gut_g_lbl = st.selectbox(
-                        f"Gravidade {idx}",
-                        options=labels(G_SEVERITY),
-                        index=2,
-                        key=f"gut_g_lbl_{idx}",
-                    )
-                with g2:
-                    gut_u_lbl = st.selectbox(
-                        f"Urgência {idx}",
-                        options=labels(U_URGENCY),
-                        index=2,
-                        key=f"gut_u_lbl_{idx}",
-                    )
-                with g3:
-                    gut_t_lbl = st.selectbox(
-                        f"Tendência {idx}",
-                        options=labels(T_TREND),
-                        index=2,
-                        key=f"gut_t_lbl_{idx}",
-                    )
 
             tasks_raw.append(
                 {
                     "title": (title or "").strip(),
                     "description": (desc or "").strip(),
-                    "impact_label": impact_lbl,
-                    "effort_label": effort_lbl,
-                    "impact": map_number(IMPACT, impact_lbl),
-                    "effort": map_number(EFFORT, effort_lbl),
-
-                    "reach_label": reach_lbl,
-                    "confidence_label": conf_lbl,
-                    "reach": (map_number(REACH, reach_lbl) if reach_lbl else None),
-                    "confidence": (map_number(CONFIDENCE, conf_lbl) if conf_lbl else None),
-
-                    "moscow_label": mos_lbl,
-                    "moscow": (map_moscow(MOSCOW, mos_lbl) if mos_lbl else None),
-
-                    "gut_g_label": gut_g_lbl,
-                    "gut_u_label": gut_u_lbl,
-                    "gut_t_label": gut_t_lbl,
-                    "gut_g": (map_number(G_SEVERITY, gut_g_lbl) if gut_g_lbl else None),
-                    "gut_u": (map_number(U_URGENCY, gut_u_lbl) if gut_u_lbl else None),
-                    "gut_t": (map_number(T_TREND, gut_t_lbl) if gut_t_lbl else None),
+                    "benefit_label": benefit_lbl,
+                    "work_label": work_lbl,
+                    "benefit": to_num(BENEFIT, benefit_lbl),
+                    "work": to_num(WORK, work_lbl),
                 }
             )
 
-    # Botão adicionar tarefa
     st.write("")
     a1, a2 = st.columns([1, 1])
     with a1:
@@ -393,144 +356,43 @@ with left:
             st.session_state.task_count += 1
             st.rerun()
     with a2:
-        st.caption(f"Tarefas visíveis: {st.session_state.task_count}/10")
+        st.caption(f"{st.session_state.task_count}/10")
 
-    # Validação (mínimo 3 tarefas completas)
-    filled = [t for t in tasks_raw if t["title"]]
-    tasks_ok = True
+    # Validação (sem textos extras por campo)
+    filled = [t for t in tasks_raw if t["title"] and t["description"]]
+    can_run = bool(user_name.strip()) and (len(filled) >= 3)
 
-    if len(filled) < 3:
-        tasks_ok = False
-        st.warning("Preencha pelo menos 3 tarefas (título e descrição).")
-
-    for i, t in enumerate(filled, start=1):
-        if not t["description"]:
-            tasks_ok = False
-            st.warning(f"Complete a descrição da tarefa {i}.")
-            break
+    if not can_run:
+        st.markdown('<div class="warn">Falta: nome e pelo menos 3 tarefas completas.</div>', unsafe_allow_html=True)
 
     st.write("")
-    st.subheader("3) Método de priorização")
-    st.caption("Escolha o método depois de preencher suas tarefas.")
-
-    st.session_state.method_label = st.selectbox(
-        "Critério",
-        options=list(method_label_map.keys()),
-        index=list(method_label_map.keys()).index(st.session_state.method_label),
-        disabled=not tasks_ok,
-    )
-    method: Method = method_label_map[st.session_state.method_label]
-
-    # Validação extra por método
-    if tasks_ok and method == "RICE":
-        for i, t in enumerate(filled, start=1):
-            if t["reach"] is None or t["confidence"] is None:
-                tasks_ok = False
-                st.warning(f"Complete Alcance e Certeza na tarefa {i}.")
-                break
-
-    if tasks_ok and method == "MOSCOW":
-        for i, t in enumerate(filled, start=1):
-            if not t["moscow"]:
-                tasks_ok = False
-                st.warning(f"Complete a Importância (MoSCoW) na tarefa {i}.")
-                break
-
-    if tasks_ok and method == "GUT":
-        for i, t in enumerate(filled, start=1):
-            if t["gut_g"] is None or t["gut_u"] is None or t["gut_t"] is None:
-                tasks_ok = False
-                st.warning(f"Complete G, U e T na tarefa {i}.")
-                break
-
-    st.write("")
-    st.subheader("4) Rodar")
-    run = st.button(
-        "Priorizar com IA",
-        type="primary",
-        use_container_width=True,
-        disabled=(not user_name.strip() or not tasks_ok),
-    )
-
-    st.markdown("</div>", unsafe_allow_html=True)
-
-# -----------------------------
-# Output
-# -----------------------------
-with right:
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.subheader("Resultado")
-    st.caption("Ordem sugerida, com explicação amigável e dicas práticas.")
+    run = st.button("Priorizar com IA", type="primary", use_container_width=True, disabled=not can_run)
 
     if run:
         try:
-            tasks_payload = []
-            for t in filled:
-                base = {
+            payload = [
+                {
                     "title": t["title"],
                     "description": t["description"],
-                    "impact": t["impact"],
-                    "effort": t["effort"],
-                    "impact_label": t["impact_label"],
-                    "effort_label": t["effort_label"],
-                    "scale": "1 a 5 (baixo -> alto), escolhidos por rótulos em texto.",
+                    "benefit": t["benefit"],
+                    "work": t["work"],
+                    "benefit_label": t["benefit_label"],
+                    "work_label": t["work_label"],
+                    "scale": "1 a 5 (baixo -> alto). benefit = quanto ajuda, work = quanto trabalho dá.",
                 }
+                for t in filled
+            ]
 
-                if method == "RICE":
-                    base.update({
-                        "reach": t["reach"],
-                        "confidence": t["confidence"],
-                        "reach_label": t["reach_label"],
-                        "confidence_label": t["confidence_label"],
-                    })
-
-                if method == "MOSCOW":
-                    base.update({
-                        "moscow": t["moscow"],
-                        "moscow_label": t["moscow_label"],
-                    })
-
-                if method == "GUT":
-                    base.update({
-                        "gut_g": t["gut_g"],
-                        "gut_u": t["gut_u"],
-                        "gut_t": t["gut_t"],
-                        "gut_g_label": t["gut_g_label"],
-                        "gut_u_label": t["gut_u_label"],
-                        "gut_t_label": t["gut_t_label"],
-                    })
-
-                tasks_payload.append(base)
-
-            with st.spinner("Organizando suas tarefas com IA..."):
-                result = call_openai_prioritize(user_name.strip(), method, tasks_payload)
+            with st.spinner("Pensando na melhor ordem..."):
+                result = call_openai_prioritize(user_name.strip(), method, payload)
 
             st.session_state.last_result = result.model_dump()
+            st.session_state.scroll_up = True
+            st.rerun()
 
         except Exception as e:
             st.session_state.last_result = {"error": str(e)}
-
-    # Render do último resultado
-    if st.session_state.last_result:
-        if "error" in st.session_state.last_result:
-            st.error(st.session_state.last_result["error"])
-            st.info("Se for chave, revise os Secrets no Streamlit Cloud.")
-        else:
-            r = st.session_state.last_result
-            st.success(r["friendly_message"])
-            st.write(f"Método: **{r['method_used']}**")
-            st.write(f"Tempo economizado (estimado): **{r['estimated_time_saved_percent']}%**")
-            st.write("")
-            st.write(r["summary"])
-            st.write("")
-
-            for item in r["ordered_tasks"]:
-                st.markdown(f"### {item['position']}. {item['task_title']}")
-                st.write(item["explanation"])
-                st.write("**Pontos que pesaram:**")
-                for k in item["key_factors"]:
-                    st.write(f"- {k}")
-                st.caption(item["tip"])
-                st.write("")
+            st.session_state.scroll_up = True
+            st.rerun()
 
     st.markdown("</div>", unsafe_allow_html=True)
