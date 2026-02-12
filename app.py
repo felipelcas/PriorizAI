@@ -9,7 +9,6 @@ from openai import OpenAI
 # -----------------------------
 st.set_page_config(page_title="PrioriZÉ", page_icon="✅", layout="wide")
 
-# CSS leve (o tema oficial fica no config.toml)
 st.markdown(
     """
     <style>
@@ -40,7 +39,7 @@ st.markdown(
 )
 
 # -----------------------------
-# Modelos
+# Modelos (Structured Outputs)
 # -----------------------------
 Method = Literal["RICE", "MOSCOW", "IMPACT_EFFORT", "GUT"]
 
@@ -61,21 +60,31 @@ class PriorizeResult(BaseModel):
 # -----------------------------
 # Escalas simples (texto -> número)
 # -----------------------------
-SCALE_5 = [
+IMPACT = [
     ("Muito baixo", 1),
     ("Baixo", 2),
     ("Médio", 3),
     ("Alto", 4),
     ("Muito alto", 5),
 ]
-EFFORT_5 = [
+
+EFFORT = [
     ("Muito fácil e rápido", 1),
     ("Fácil", 2),
     ("Médio", 3),
     ("Difícil", 4),
     ("Muito difícil e demorado", 5),
 ]
-CONF_5 = [
+
+REACH = [
+    ("Só eu", 1),
+    ("Poucas pessoas", 2),
+    ("Algumas pessoas", 3),
+    ("Muitas pessoas", 4),
+    ("Muita gente", 5),
+]
+
+CONFIDENCE = [
     ("Baixa certeza", 1),
     ("Alguma certeza", 2),
     ("Boa certeza", 3),
@@ -83,12 +92,45 @@ CONF_5 = [
     ("Certo", 5),
 ]
 
-def label_list(options):
+G_SEVERITY = [
+    ("Leve", 1),
+    ("Pouco grave", 2),
+    ("Grave", 3),
+    ("Muito grave", 4),
+    ("Crítico", 5),
+]
+
+U_URGENCY = [
+    ("Pode esperar", 1),
+    ("Sem pressa", 2),
+    ("Seria bom fazer logo", 3),
+    ("Urgente", 4),
+    ("Imediato", 5),
+]
+
+T_TREND = [
+    ("Não piora", 1),
+    ("Piora devagar", 2),
+    ("Piora em médio prazo", 3),
+    ("Piora rápido", 4),
+    ("Vai piorar muito rápido", 5),
+]
+
+MOSCOW = [
+    ("Obrigatório", "Must"),
+    ("Importante", "Should"),
+    ("Bom ter", "Could"),
+    ("Não agora", "Wont"),
+]
+
+def labels(options):
     return [x[0] for x in options]
 
-def to_number(options, selected_label: str) -> int:
-    m = {lbl: num for (lbl, num) in options}
-    return int(m[selected_label])
+def map_number(options, selected_label: str) -> int:
+    return int({lbl: num for (lbl, num) in options}[selected_label])
+
+def map_moscow(options, selected_label: str) -> str:
+    return {lbl: key for (lbl, key) in options}[selected_label]
 
 # -----------------------------
 # OpenAI
@@ -99,7 +141,6 @@ def get_openai_client() -> OpenAI:
         api_key = st.secrets.get("OPENAI_API_KEY")
     except Exception:
         api_key = None
-
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY não configurada nos Secrets do Streamlit Cloud.")
     return OpenAI(api_key=api_key)
@@ -112,11 +153,25 @@ def call_openai_prioritize(user_name: str, method: Method, tasks_payload: List[D
     except Exception:
         pass
 
+    rules = {
+        "IMPACT_EFFORT": (
+            "Priorize primeiro o que tiver ALTO impacto e BAIXO esforço. "
+            "Depois alto impacto e alto esforço. "
+            "Evite baixo impacto e alto esforço."
+        ),
+        "RICE": "Use RICE = (reach * impact * confidence) / effort. Maior score vem primeiro.",
+        "GUT": "Use GUT = G * U * T. Maior score vem primeiro.",
+        "MOSCOW": (
+            "Ordene por categoria: Must primeiro, depois Should, depois Could, e Wont por último. "
+            "Dentro da mesma categoria, use alto impacto e baixo esforço como desempate."
+        ),
+    }
+
     system = (
-        "Você é PrioriZÉ, um assistente de priorização. "
-        "Explique como um colega de trabalho: simples, amigável, útil. "
+        "Você é PrioriZÉ, um assistente de priorização de tarefas. "
+        "Explique como um colega de trabalho: simples, amigável, útil e direto. "
         "Use os nomes das tarefas para personalizar. "
-        "Justifique a ordem com base APENAS nos dados fornecidos. "
+        "Não invente fatos. Use apenas os dados fornecidos. "
         "Retorne no schema."
     )
 
@@ -124,20 +179,23 @@ def call_openai_prioritize(user_name: str, method: Method, tasks_payload: List[D
 Nome do usuário: {user_name}
 Método escolhido: {method}
 
+Como aplicar:
+{rules[method]}
+
+As escalas numéricas são de 1 a 5 (baixo -> alto).
+Os campos também incluem rótulos em texto.
+
 Tarefas (JSON):
 {json.dumps(tasks_payload, ensure_ascii=False)}
 
-Regras:
+Regras de resposta:
 - Ordene somente tarefas preenchidas.
-- Dê uma explicação curta porém clara por tarefa (2 a 4 frases).
-- key_factors: 2 a 4 itens, bem objetivos.
-- tip: 1 frase prática.
-- estimated_time_saved_percent: inteiro 0..80, realista.
-- friendly_message: curto, levemente informal, mencionando 1 ou 2 tarefas.
+- friendly_message: curto e levemente informal, mencionando 1 ou 2 tarefas.
 - summary: plano geral em 2 a 3 frases.
+- Para cada tarefa: explanation (2 a 5 frases), key_factors (2 a 4 itens), tip (1 frase prática).
+- estimated_time_saved_percent: inteiro 0..80, realista.
 """
 
-    # Structured Outputs: resposta sempre no formato do schema
     resp = client.responses.parse(
         model=model,
         input=[
@@ -157,14 +215,18 @@ if "task_count" not in st.session_state:
 if "mode" not in st.session_state:
     st.session_state.mode = "PrioriZÉ"
 
+if "last_result" not in st.session_state:
+    st.session_state.last_result = None
+
 # -----------------------------
 # Header
 # -----------------------------
 st.title("PrioriZÉ")
-st.write("Coloque suas tarefas, e eu organizo a ordem ideal para você.")
-st.caption("Nada fica salvo. A IA só recebe o que você preencher no momento.")
+st.write("Você coloca suas tarefas e eu organizo a melhor ordem para fazer.")
+st.caption("Nada é salvo. A IA só recebe o que você preencher no momento.")
+st.write("")
 
-# 3 botões (MVP só o primeiro)
+# 3 opções (MVP só a primeira)
 c1, c2, c3 = st.columns(3)
 with c1:
     if st.button("PrioriZÉ", type="primary", use_container_width=True):
@@ -189,14 +251,13 @@ with left:
     st.markdown('<div class="card">', unsafe_allow_html=True)
 
     st.subheader("1) Seu nome")
-    user_name = st.text_input("Obrigatório", placeholder="Ex.: Felipe Castelão")
+    user_name = st.text_input("Obrigatório", placeholder="Ex.: Castelão")
 
     st.write("")
     st.subheader("2) Tarefas")
-    st.caption("Comece com 3. Para adicionar mais, clique em “Adicionar tarefa”.")
+    st.caption("Comece com 3. Para adicionar mais, clique no botão. Até 10.")
 
-    # Método só aparece depois (para incentivar preencher tarefas primeiro)
-    # Padrão: Impacto e Esforço
+    # Método padrão e nomes amigáveis
     method_label_map = {
         "Impacto e Esforço": "IMPACT_EFFORT",
         "RICE": "RICE",
@@ -204,7 +265,11 @@ with left:
         "GUT": "GUT",
     }
 
-    # Coletar tarefas (só até task_count)
+    # Guardar seleção do método em session_state para renderizar campos
+    if "method_label" not in st.session_state:
+        st.session_state.method_label = "Impacto e Esforço"
+
+    # Render das tarefas (campos mudam conforme método atual)
     tasks_raw = []
     for idx in range(1, st.session_state.task_count + 1):
         with st.expander(f"Tarefa {idx}", expanded=(idx <= 3)):
@@ -215,49 +280,128 @@ with left:
                 placeholder="Em 1 frase, o que é e qual resultado você quer.",
             )
 
-            # Método padrão no início: Impacto e Esforço
-            # Neste MVP, por padrão mostramos apenas Impacto e Esforço.
-            impact_lbl = st.selectbox(
-                f"Impacto {idx}",
-                options=label_list(SCALE_5),
-                index=2,
-                key=f"impact_lbl_{idx}",
-            )
-            effort_lbl = st.selectbox(
-                f"Esforço {idx}",
-                options=label_list(EFFORT_5),
-                index=2,
-                key=f"effort_lbl_{idx}",
-            )
+            # Campos base (sempre)
+            col1, col2 = st.columns(2)
+            with col1:
+                impact_lbl = st.selectbox(
+                    f"Impacto {idx}",
+                    options=labels(IMPACT),
+                    index=2,
+                    key=f"impact_lbl_{idx}",
+                )
+            with col2:
+                effort_lbl = st.selectbox(
+                    f"Esforço {idx}",
+                    options=labels(EFFORT),
+                    index=2,
+                    key=f"effort_lbl_{idx}",
+                )
 
-            # Guardar os dados simples (texto) e numéricos (convertidos)
+            # Campos extras por método
+            method_key: Method = method_label_map[st.session_state.method_label]
+
+            reach_lbl = None
+            conf_lbl = None
+            mos_lbl = None
+            gut_g_lbl = None
+            gut_u_lbl = None
+            gut_t_lbl = None
+
+            if method_key == "RICE":
+                st.caption("RICE precisa de Alcance e Certeza também.")
+                c3, c4 = st.columns(2)
+                with c3:
+                    reach_lbl = st.selectbox(
+                        f"Alcance {idx}",
+                        options=labels(REACH),
+                        index=2,
+                        key=f"reach_lbl_{idx}",
+                    )
+                with c4:
+                    conf_lbl = st.selectbox(
+                        f"Certeza {idx}",
+                        options=labels(CONFIDENCE),
+                        index=2,
+                        key=f"conf_lbl_{idx}",
+                    )
+
+            elif method_key == "MOSCOW":
+                st.caption("MoSCoW: escolha a importância.")
+                mos_lbl = st.selectbox(
+                    f"Importância {idx}",
+                    options=labels(MOSCOW),
+                    index=1,
+                    key=f"mos_lbl_{idx}",
+                )
+
+            elif method_key == "GUT":
+                st.caption("GUT: gravidade, urgência e tendência.")
+                g1, g2, g3 = st.columns(3)
+                with g1:
+                    gut_g_lbl = st.selectbox(
+                        f"Gravidade {idx}",
+                        options=labels(G_SEVERITY),
+                        index=2,
+                        key=f"gut_g_lbl_{idx}",
+                    )
+                with g2:
+                    gut_u_lbl = st.selectbox(
+                        f"Urgência {idx}",
+                        options=labels(U_URGENCY),
+                        index=2,
+                        key=f"gut_u_lbl_{idx}",
+                    )
+                with g3:
+                    gut_t_lbl = st.selectbox(
+                        f"Tendência {idx}",
+                        options=labels(T_TREND),
+                        index=2,
+                        key=f"gut_t_lbl_{idx}",
+                    )
+
             tasks_raw.append(
                 {
                     "title": (title or "").strip(),
                     "description": (desc or "").strip(),
                     "impact_label": impact_lbl,
                     "effort_label": effort_lbl,
-                    "impact": to_number(SCALE_5, impact_lbl),
-                    "effort": to_number(EFFORT_5, effort_lbl),
+                    "impact": map_number(IMPACT, impact_lbl),
+                    "effort": map_number(EFFORT, effort_lbl),
+
+                    "reach_label": reach_lbl,
+                    "confidence_label": conf_lbl,
+                    "reach": (map_number(REACH, reach_lbl) if reach_lbl else None),
+                    "confidence": (map_number(CONFIDENCE, conf_lbl) if conf_lbl else None),
+
+                    "moscow_label": mos_lbl,
+                    "moscow": (map_moscow(MOSCOW, mos_lbl) if mos_lbl else None),
+
+                    "gut_g_label": gut_g_lbl,
+                    "gut_u_label": gut_u_lbl,
+                    "gut_t_label": gut_t_lbl,
+                    "gut_g": (map_number(G_SEVERITY, gut_g_lbl) if gut_g_lbl else None),
+                    "gut_u": (map_number(U_URGENCY, gut_u_lbl) if gut_u_lbl else None),
+                    "gut_t": (map_number(T_TREND, gut_t_lbl) if gut_t_lbl else None),
                 }
             )
 
-    # Botão para adicionar tarefa
+    # Botão adicionar tarefa
     st.write("")
-    add_col1, add_col2 = st.columns([1, 1])
-    with add_col1:
+    a1, a2 = st.columns([1, 1])
+    with a1:
         if st.button("Adicionar tarefa", use_container_width=True, disabled=(st.session_state.task_count >= 10)):
             st.session_state.task_count += 1
             st.rerun()
-    with add_col2:
+    with a2:
         st.caption(f"Tarefas visíveis: {st.session_state.task_count}/10")
 
-    # Validação mínima
+    # Validação (mínimo 3 tarefas completas)
     filled = [t for t in tasks_raw if t["title"]]
     tasks_ok = True
+
     if len(filled) < 3:
         tasks_ok = False
-        st.warning("Você precisa preencher pelo menos 3 tarefas (título e descrição).")
+        st.warning("Preencha pelo menos 3 tarefas (título e descrição).")
 
     for i, t in enumerate(filled, start=1):
         if not t["description"]:
@@ -267,17 +411,40 @@ with left:
 
     st.write("")
     st.subheader("3) Método de priorização")
-    st.caption("Depois de preencher suas tarefas, escolha o método.")
-    method_label = st.selectbox(
+    st.caption("Escolha o método depois de preencher suas tarefas.")
+
+    st.session_state.method_label = st.selectbox(
         "Critério",
         options=list(method_label_map.keys()),
-        index=0,  # Impacto e Esforço
+        index=list(method_label_map.keys()).index(st.session_state.method_label),
         disabled=not tasks_ok,
     )
-    method: Method = method_label_map[method_label]  # internal key
+    method: Method = method_label_map[st.session_state.method_label]
+
+    # Validação extra por método
+    if tasks_ok and method == "RICE":
+        for i, t in enumerate(filled, start=1):
+            if t["reach"] is None or t["confidence"] is None:
+                tasks_ok = False
+                st.warning(f"Complete Alcance e Certeza na tarefa {i}.")
+                break
+
+    if tasks_ok and method == "MOSCOW":
+        for i, t in enumerate(filled, start=1):
+            if not t["moscow"]:
+                tasks_ok = False
+                st.warning(f"Complete a Importância (MoSCoW) na tarefa {i}.")
+                break
+
+    if tasks_ok and method == "GUT":
+        for i, t in enumerate(filled, start=1):
+            if t["gut_g"] is None or t["gut_u"] is None or t["gut_t"] is None:
+                tasks_ok = False
+                st.warning(f"Complete G, U e T na tarefa {i}.")
+                break
 
     st.write("")
-    st.subheader("4) Rodar a priorização")
+    st.subheader("4) Rodar")
     run = st.button(
         "Priorizar com IA",
         type="primary",
@@ -285,7 +452,7 @@ with left:
         disabled=(not user_name.strip() or not tasks_ok),
     )
 
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # -----------------------------
 # Output
@@ -293,46 +460,77 @@ with left:
 with right:
     st.markdown('<div class="card">', unsafe_allow_html=True)
     st.subheader("Resultado")
-    st.caption("Ordem sugerida, com explicação simples e dicas práticas.")
+    st.caption("Ordem sugerida, com explicação amigável e dicas práticas.")
 
     if run:
         try:
-            # Se o usuário escolher RICE/MoSCoW/GUT no futuro, você pode ampliar os campos.
-            # Por enquanto, o MVP envia Impacto e Esforço (bem simples e claro para leigos).
-            tasks_payload = [
-                {
+            tasks_payload = []
+            for t in filled:
+                base = {
                     "title": t["title"],
                     "description": t["description"],
                     "impact": t["impact"],
                     "effort": t["effort"],
                     "impact_label": t["impact_label"],
                     "effort_label": t["effort_label"],
-                    "scale_info": "impact e effort: 1 (baixo) a 5 (alto), escolhidos por rótulos de texto.",
+                    "scale": "1 a 5 (baixo -> alto), escolhidos por rótulos em texto.",
                 }
-                for t in filled
-            ]
+
+                if method == "RICE":
+                    base.update({
+                        "reach": t["reach"],
+                        "confidence": t["confidence"],
+                        "reach_label": t["reach_label"],
+                        "confidence_label": t["confidence_label"],
+                    })
+
+                if method == "MOSCOW":
+                    base.update({
+                        "moscow": t["moscow"],
+                        "moscow_label": t["moscow_label"],
+                    })
+
+                if method == "GUT":
+                    base.update({
+                        "gut_g": t["gut_g"],
+                        "gut_u": t["gut_u"],
+                        "gut_t": t["gut_t"],
+                        "gut_g_label": t["gut_g_label"],
+                        "gut_u_label": t["gut_u_label"],
+                        "gut_t_label": t["gut_t_label"],
+                    })
+
+                tasks_payload.append(base)
 
             with st.spinner("Organizando suas tarefas com IA..."):
                 result = call_openai_prioritize(user_name.strip(), method, tasks_payload)
 
-            st.success(result.friendly_message)
-            st.write(f"Método: **{result.method_used}**")
-            st.write(f"Tempo economizado (estimado): **{result.estimated_time_saved_percent}%**")
-            st.write("")
-            st.write(result.summary)
-            st.write("")
-
-            for item in result.ordered_tasks:
-                st.markdown(f"### {item.position}. {item.task_title}")
-                st.write(item.explanation)
-                st.write("**Pontos que pesaram:**")
-                for k in item.key_factors:
-                    st.write(f"- {k}")
-                st.caption(item.tip)
-                st.write("")
+            st.session_state.last_result = result.model_dump()
 
         except Exception as e:
-            st.error(str(e))
-            st.info("Se for chave, revise os Secrets no Streamlit Cloud (não é no GitHub).")
+            st.session_state.last_result = {"error": str(e)}
 
-    st.markdown('</div>', unsafe_allow_html=True)
+    # Render do último resultado
+    if st.session_state.last_result:
+        if "error" in st.session_state.last_result:
+            st.error(st.session_state.last_result["error"])
+            st.info("Se for chave, revise os Secrets no Streamlit Cloud.")
+        else:
+            r = st.session_state.last_result
+            st.success(r["friendly_message"])
+            st.write(f"Método: **{r['method_used']}**")
+            st.write(f"Tempo economizado (estimado): **{r['estimated_time_saved_percent']}%**")
+            st.write("")
+            st.write(r["summary"])
+            st.write("")
+
+            for item in r["ordered_tasks"]:
+                st.markdown(f"### {item['position']}. {item['task_title']}")
+                st.write(item["explanation"])
+                st.write("**Pontos que pesaram:**")
+                for k in item["key_factors"]:
+                    st.write(f"- {k}")
+                st.caption(item["tip"])
+                st.write("")
+
+    st.markdown("</div>", unsafe_allow_html=True)
