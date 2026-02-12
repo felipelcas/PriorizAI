@@ -669,6 +669,33 @@
             font-style: italic;
         }
 
+        /* Simple order table */
+        .order-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0 1.25rem;
+            overflow: hidden;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            background: rgba(15, 23, 42, 0.35);
+        }
+        .order-table th,
+        .order-table td {
+            padding: 0.75rem 0.9rem;
+            text-align: left;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+        }
+        .order-table th {
+            color: var(--text-primary);
+            font-weight: 700;
+            background: rgba(6, 182, 212, 0.08);
+        }
+        .order-table tr:last-child td {
+            border-bottom: none;
+        }
+
         /* Animations */
         @keyframes fadeIn {
             from {
@@ -779,28 +806,28 @@
                     <label>Método de priorização</label>
                     <p class="hint-text">Por enquanto, só o primeiro está liberado.</p>
                     <div class="method-grid">
-                        <div class="method-card active" data-method="impact">
+                        <div class="method-card active" data-method="IMPACT_EFFORT">
                             <div class="method-name">
                                 Impacto e Esforço
                                 <span class="tooltip-icon" title="Prioriza o que é mais importante e leva menos tempo.">?</span>
                             </div>
                             <div class="method-desc">Foco no que importa mais</div>
                         </div>
-                        <div class="method-card disabled">
+                        <div class="method-card disabled" data-method="RICE">
                             <div class="method-name">
                                 RICE
                                 <span class="tooltip-icon" title="Método mais técnico. Vai liberar depois.">?</span>
                             </div>
                             <div class="method-desc">Em breve</div>
                         </div>
-                        <div class="method-card disabled">
+                        <div class="method-card disabled" data-method="MOSCOW">
                             <div class="method-name">
                                 MoSCoW
                                 <span class="tooltip-icon" title="Separa em: obrigatório, importante, bom ter, não agora.">?</span>
                             </div>
                             <div class="method-desc">Em breve</div>
                         </div>
-                        <div class="method-card disabled">
+                        <div class="method-card disabled" data-method="GUT">
                             <div class="method-name">
                                 GUT
                                 <span class="tooltip-icon" title="Olha gravidade, urgência e tendência. Vai liberar depois.">?</span>
@@ -849,9 +876,26 @@
     </div>
 
     <script>
+        /**
+         * IMPORTANTE
+         * Cole aqui a URL do seu Worker (workers.dev ou domínio customizado).
+         * Exemplo: https://priorizai-api.seu-subdominio.workers.dev
+         * Não coloque "/" no final.
+         */
+        const WORKER_BASE_URL = "priorizai.felipelcas.workers.dev";
+
         // State
         let taskCount = 3;
         const MAX_TASKS = 10;
+
+        function normalizeBaseUrl(url) {
+            return (url || "").trim().replace(/\/+$/, '');
+        }
+
+        function getSelectedMethod() {
+            const active = document.querySelector('.method-card.active');
+            return active?.dataset?.method || "IMPACT_EFFORT";
+        }
 
         // Initialize tasks
         function initializeTasks() {
@@ -956,16 +1000,36 @@
         // Collect form data
         function collectFormData() {
             const userName = document.getElementById('userName').value.trim();
+            const method = getSelectedMethod();
+
             const tasks = Array.from(document.querySelectorAll('.task-item'))
-                .map(task => ({
-                    title: task.querySelector('.task-title').value.trim(),
-                    description: task.querySelector('.task-desc').value.trim(),
-                    importance: parseInt(task.querySelector('.task-importance').value),
-                    time: parseInt(task.querySelector('.task-time').value)
-                }))
+                .map(task => {
+                    const titleEl = task.querySelector('.task-title');
+                    const descEl = task.querySelector('.task-desc');
+                    const impEl = task.querySelector('.task-importance');
+                    const timeEl = task.querySelector('.task-time');
+
+                    const title = titleEl.value.trim();
+                    const description = descEl.value.trim();
+
+                    const importance = parseInt(impEl.value, 10);
+                    const time = parseInt(timeEl.value, 10);
+
+                    const importanceLabel = impEl.options[impEl.selectedIndex]?.text || '';
+                    const timeLabel = timeEl.options[timeEl.selectedIndex]?.text || '';
+
+                    return {
+                        title,
+                        description,
+                        importance,
+                        time,
+                        importanceLabel,
+                        timeLabel
+                    };
+                })
                 .filter(task => task.title && task.description);
 
-            return { userName, tasks };
+            return { userName, method, tasks };
         }
 
         // Show loading state
@@ -974,80 +1038,131 @@
             container.innerHTML = `
                 <div class="loading">
                     <div class="spinner"></div>
-                    <div class="loading-text">Analisando suas tarefas...</div>
+                    <div class="loading-text">Priorizando a ordem...</div>
                 </div>
             `;
         }
 
-        // Mock API call (replace with actual API)
-        async function prioritizeTasks(data) {
-            // Simulate API delay
-            await new Promise(resolve => setTimeout(resolve, 2000));
-
-            // Mock response - in production, this would call your actual API
-            return {
-                friendlyMessage: `Oi ${data.userName}! Organizei suas tarefas na melhor ordem pra você.`,
-                summary: 'Comece pelas tarefas importantes que levam menos tempo. Assim você vai sentir progresso rápido e não vai deixar nada crítico pra depois.',
-                estimatedTimeSaved: 35,
-                rankedTasks: data.tasks
-                    .sort((a, b) => {
-                        // Simple impact/effort scoring
-                        const scoreA = a.importance / a.time;
-                        const scoreB = b.importance / b.time;
-                        return scoreB - scoreA;
-                    })
-                    .map((task, index) => ({
-                        position: index + 1,
-                        title: task.title,
-                        explanation: `Esta tarefa tem importância ${task.importance}/5 e leva aproximadamente ${getTimeLabel(task.time)}. Por isso ficou na posição ${index + 1}.`,
-                        keyPoints: [
-                            'Equilíbrio entre impacto e tempo investido',
-                            'Ajuda a manter o foco no que mais importa'
-                        ],
-                        tip: index === 0 ? '💡 Comece por aqui! É sua prioridade máxima.' : '✅ Mantenha no radar.'
-                    }))
-            };
+        function showError(message) {
+            document.getElementById('resultsContainer').innerHTML = `
+                <div class="result-empty">
+                    <div class="result-empty-icon">❌</div>
+                    <p>${message || 'Ops. Algo deu errado. Tente novamente.'}</p>
+                </div>
+            `;
         }
 
-        function getTimeLabel(value) {
-            const labels = {
-                1: 'menos de 10 minutos',
-                2: '10 a 30 minutos',
-                3: '30 minutos a 2 horas',
-                4: '2 a 6 horas',
-                5: 'mais de 6 horas'
-            };
-            return labels[value] || 'tempo estimado';
+        async function callWorkerPrioritize(data) {
+            const base = normalizeBaseUrl(WORKER_BASE_URL);
+            if (!base || base === "A_URL_DO_SEU_WORKER") {
+                throw new Error('Você ainda não configurou a URL do Worker no index.html (WORKER_BASE_URL).');
+            }
+
+            const url = `${base}/prioritize`;
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            const text = await resp.text();
+            let json;
+            try { json = JSON.parse(text); } catch { json = null; }
+
+            if (!resp.ok) {
+                const msg = (json && (json.error || json.message)) ? (json.error || json.message) : text;
+                throw new Error(msg || `Erro HTTP ${resp.status}`);
+            }
+
+            return json || {};
+        }
+
+        // Normalize results shape
+        function normalizeResults(raw) {
+            const friendlyMessage = raw.friendlyMessage ?? raw.friendly_message ?? raw.friendlyMessageText ?? '';
+            const summary = raw.summary ?? raw.resumo ?? '';
+            const estimatedTimeSaved =
+                raw.estimatedTimeSaved ??
+                raw.estimated_time_saved_percent ??
+                raw.estimated_time_saved ??
+                raw.estimatedTimeSavedPercent ??
+                null;
+
+            const list = raw.rankedTasks ?? raw.ordered_tasks ?? raw.orderedTasks ?? [];
+
+            const rankedTasks = (Array.isArray(list) ? list : []).map((t, idx) => ({
+                position: t.position ?? (idx + 1),
+                title: t.title ?? t.task_title ?? t.taskTitle ?? '',
+                explanation: t.explanation ?? '',
+                keyPoints: t.keyPoints ?? t.key_points ?? [],
+                tip: t.tip ?? ''
+            }));
+
+            return { friendlyMessage, summary, estimatedTimeSaved, rankedTasks };
         }
 
         // Display results
-        function displayResults(results) {
+        function displayResults(rawResults) {
             const container = document.getElementById('resultsContainer');
-            
+            const results = normalizeResults(rawResults);
+
+            const orderRows = results.rankedTasks.map(t => `
+                <tr>
+                    <td style="color: var(--text-primary); font-weight: 700;">${t.position}</td>
+                    <td>${escapeHtml(t.title)}</td>
+                </tr>
+            `).join('');
+
+            const orderTableHTML = `
+                <table class="order-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 90px;">Ordem</th>
+                            <th>Tarefa</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${orderRows || `<tr><td colspan="2">Sem itens para mostrar.</td></tr>`}
+                    </tbody>
+                </table>
+            `;
+
             const rankedListHTML = results.rankedTasks.map(task => `
                 <div class="ranked-item">
                     <div class="ranked-header">
                         <div class="rank-number">${task.position}</div>
-                        <div class="rank-title">${task.title}</div>
+                        <div class="rank-title">${escapeHtml(task.title)}</div>
                     </div>
-                    <div class="rank-explanation">${task.explanation}</div>
-                    <ul class="key-points">
-                        ${task.keyPoints.map(point => `<li>${point}</li>`).join('')}
-                    </ul>
-                    <div class="rank-tip">${task.tip}</div>
+                    ${task.explanation ? `<div class="rank-explanation">${escapeHtml(task.explanation)}</div>` : ''}
+                    ${Array.isArray(task.keyPoints) && task.keyPoints.length ? `
+                        <ul class="key-points">
+                            ${task.keyPoints.map(point => `<li>${escapeHtml(point)}</li>`).join('')}
+                        </ul>
+                    ` : ''}
+                    ${task.tip ? `<div class="rank-tip">${escapeHtml(task.tip)}</div>` : ''}
                 </div>
             `).join('');
 
+            const statHTML = (results.estimatedTimeSaved !== null && results.estimatedTimeSaved !== undefined)
+                ? `<div class="result-stat">📊 Tempo economizado estimado: ${results.estimatedTimeSaved}%</div>`
+                : '';
+
             container.innerHTML = `
                 <div class="result-header">
-                    <div class="result-message">${results.friendlyMessage}</div>
-                    <div class="result-summary">${results.summary}</div>
-                    <div class="result-stat">
-                        📊 Tempo economizado estimado: ${results.estimatedTimeSaved}%
-                    </div>
+                    <div class="result-message">${escapeHtml(results.friendlyMessage || 'Aqui vai sua ordem de execução.')}</div>
+                    ${results.summary ? `<div class="result-summary">${escapeHtml(results.summary)}</div>` : ''}
+                    ${statHTML}
                 </div>
+
+                ${orderTableHTML}
+
                 <div class="ranked-list">
-                    ${rankedListHTML}
+                    ${rankedListHTML || `
+                        <div class="result-empty">
+                            <div class="result-empty-icon">📋</div>
+                            <p>Não consegui montar a lista. Tente de novo.</p>
+                        </div>
+                    `}
                 </div>
             `;
 
@@ -1057,27 +1172,43 @@
             }
         }
 
+        function escapeHtml(str) {
+            return String(str || '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+        }
+
+        function setBusy(isBusy) {
+            const btn = document.getElementById('prioritizeBtn');
+            btn.disabled = !!isBusy;
+            btn.style.opacity = isBusy ? '0.75' : '1';
+        }
+
         // Prioritize button click
         document.getElementById('prioritizeBtn').addEventListener('click', async () => {
             if (!validateForm()) return;
 
+            // Sobe para o topo, como você pediu
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
             const formData = collectFormData();
             showLoading();
+            setBusy(true);
 
             try {
-                const results = await prioritizeTasks(formData);
+                const results = await callWorkerPrioritize(formData);
                 displayResults(results);
             } catch (error) {
-                document.getElementById('resultsContainer').innerHTML = `
-                    <div class="result-empty">
-                        <div class="result-empty-icon">❌</div>
-                        <p>Ops! Algo deu errado. Tente novamente.</p>
-                    </div>
-                `;
+                showError(error?.message || 'Ops. Algo deu errado. Tente novamente.');
+            } finally {
+                setBusy(false);
             }
         });
 
-        // Method card selection (visual only, since only one is active)
+        // Method card selection (only enabled ones can toggle)
         document.querySelectorAll('.method-card:not(.disabled)').forEach(card => {
             card.addEventListener('click', () => {
                 document.querySelectorAll('.method-card').forEach(c => c.classList.remove('active'));
