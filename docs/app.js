@@ -1,5 +1,5 @@
 // 1) COLE A URL DO SEU WORKER AQUI (a rota é /prioritize)
-const WORKER_BASE_URL = "COLE_AQUI_A_URL_DO_SEU_WORKER";
+const WORKER_BASE_URL = "priorizai.felipelcas.workers.dev";
 const API_URL = `${WORKER_BASE_URL.replace(/\/$/, "")}/prioritize`;
 
 (function injectOrderTableStyles() {
