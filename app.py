@@ -1,9 +1,8 @@
 import json
 import re
-import time
-import html
+import html as html_lib
 from pathlib import Path
-from typing import Literal, List, Dict
+from typing import Literal, List, Dict, Tuple
 
 import streamlit as st
 import streamlit.components.v1 as components
@@ -15,6 +14,7 @@ from openai import OpenAI
 # Tipos
 # -----------------------------
 Method = Literal["IMPACT_EFFORT", "RICE", "MOSCOW", "GUT"]
+
 
 # -----------------------------
 # Página
@@ -33,13 +33,10 @@ def extract_between(text: str, start: str, end: str) -> str:
     return m.group(1) if m else ""
 
 
-def load_frontend_assets(html_path: Path) -> tuple[str, str]:
+def load_frontend_assets(html_path: Path) -> Tuple[str, str]:
     raw = html_path.read_text(encoding="utf-8")
 
-    # Pega o CSS do <style>...</style>
     css = extract_between(raw, "<style>", "</style>").strip()
-
-    # Pega os <link ...> (fontes etc)
     links = "\n".join(re.findall(r"<link[^>]+>", raw, flags=re.I)).strip()
 
     return css, links
@@ -51,36 +48,30 @@ if not HTML_FILE.exists():
 
 html_css, html_links = load_frontend_assets(HTML_FILE)
 
-# Injeta links (fonts) e CSS do HTML
-# Observação: link tags no corpo funcionam para carregar fontes na prática.
-st.markdown(html_links, unsafe_allow_html=True)
+if html_links:
+    st.markdown(html_links, unsafe_allow_html=True)
 
 # Patch CSS para integrar com Streamlit (layout, fundo e widgets)
-# Baseado no seu HTML (classes .container, .card, .card-title, .tooltip-icon, .task-item etc)
 st.markdown(
     f"""
     <style>
       {html_css}
 
-      /* Ajustes do Streamlit para ficar com a mesma “cara” do HTML */
       .block-container {{
         max-width: 1400px;
         padding-top: 1.25rem;
         padding-bottom: 1.25rem;
       }}
 
-      /* Fundo parecido com o do HTML (Streamlit usa containers próprios) */
       [data-testid="stAppViewContainer"] {{
         background: linear-gradient(135deg, #0a0e1a 0%, #1e1b4b 50%, #0a0e1a 100%);
       }}
       [data-testid="stHeader"] {{ background: transparent; }}
       [data-testid="stToolbar"] {{ visibility: hidden; height: 0px; }}
 
-      /* Esconde ícones/links de cabeçalho do Streamlit */
       a[href^="#"] {{ display: none !important; }}
       button[title*="link"], button[aria-label*="link"] {{ display:none !important; }}
 
-      /* Inputs com estética do seu HTML */
       [data-baseweb="input"] > div,
       [data-baseweb="textarea"] > div,
       [data-baseweb="select"] > div {{
@@ -96,7 +87,6 @@ st.markdown(
         box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.3) !important;
       }}
 
-      /* Botões estilo “btn” */
       div.stButton > button[kind="primary"] {{
         background: linear-gradient(135deg, #06b6d4, #0891b2) !important;
         color: #ffffff !important;
@@ -115,7 +105,6 @@ st.markdown(
         padding: 0.85rem 1rem !important;
       }}
 
-      /* Tooltip ícone amarelo pequeno (mesma ideia do seu HTML .tooltip-icon) */
       .tooltip-icon {{
         display: inline-flex;
         align-items: center;
@@ -133,12 +122,10 @@ st.markdown(
         line-height: 16px;
       }}
 
-      /* Alternância de cor de tarefa (Streamlit quebra nth-child, então usamos .alt) */
       .task-item.alt {{
         border-left-color: #fbbf24 !important;
       }}
 
-      /* Títulos do form maiores */
       .big-label {{
         font-family: 'Outfit', sans-serif;
         font-size: 1.1rem;
@@ -146,13 +133,11 @@ st.markdown(
         margin-bottom: 0.25rem;
       }}
 
-      /* Aviso amarelo mais evidente */
       .info-banner {{
         font-size: 1rem !important;
         font-weight: 800 !important;
       }}
 
-      /* Obrigatório com * vermelho */
       .req {{
         color: #ef4444;
         font-weight: 900;
@@ -171,7 +156,7 @@ st.markdown(
 
 
 def help_icon(text: str) -> str:
-    tip = html_lib.escape(text, quote=True)
+    tip = html_lib.escape(text or "", quote=True)
     return f"<span class='tooltip-icon' title='{tip}'>?</span>"
 
 
@@ -232,7 +217,8 @@ def labels(options):
 
 
 def to_num(options, selected_label: str) -> int:
-    return int({lbl: num for (lbl, num) in options}[selected_label])
+    mapping = {lbl: num for (lbl, num) in options}
+    return int(mapping[selected_label])
 
 
 # -----------------------------
@@ -244,6 +230,7 @@ def get_openai_client() -> OpenAI:
         api_key = st.secrets.get("OPENAI_API_KEY")
     except Exception:
         api_key = None
+
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY não configurada nos Secrets do Streamlit Cloud.")
     return OpenAI(api_key=api_key)
@@ -523,7 +510,7 @@ if run and can_run:
             text_ph.caption(item.tip)
             text_ph.write("")
 
-    except Exception as e:
+    except Exception:
         status_ph.empty()
         table_ph.empty()
-        text_ph.error(str(e))
+        text_ph.error("Falha ao priorizar. Verifique o OPENAI_API_KEY nos Secrets e o arquivo requirements.txt.")
