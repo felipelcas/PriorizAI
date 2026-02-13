@@ -3,141 +3,301 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PriorizAI | CalmAI | BriefAI</title>
-
+    <title>PriorizAI - Organize suas tarefas com inteligência</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    
     <style>
-        :root {
-            --bg-dark: #0a0a0f;
-            --bg-darker: #050508;
-            --card-bg: rgba(17, 17, 27, 0.8);
-            --card-border: rgba(255, 255, 255, 0.08);
-            --accent-cyan: #00d9ff;
-            --accent-purple: #b347ff;
-            --accent-pink: #ff4ecd;
-            --text-primary: #ffffff;
-            --text-secondary: rgba(255, 255, 255, 0.7);
-            --text-muted: rgba(255, 255, 255, 0.5);
-            --border: rgba(255, 255, 255, 0.08);
-            --shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
-            --radius: 16px;
-            --radius-sm: 12px;
-            --radius-xs: 10px;
-        }
-
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
 
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: radial-gradient(circle at 20% 20%, rgba(179, 71, 255, 0.12) 0%, transparent 50%),
-                        radial-gradient(circle at 80% 80%, rgba(0, 217, 255, 0.10) 0%, transparent 50%),
-                        radial-gradient(circle at 50% 50%, rgba(255, 78, 205, 0.08) 0%, transparent 50%),
-                        linear-gradient(180deg, var(--bg-dark) 0%, var(--bg-darker) 100%);
-            min-height: 100vh;
-            color: var(--text-primary);
-            overflow-x: hidden;
+        :root {
+            --bg-dark: #0a0a0a;
+            --bg-darker: #000000;
+            --bg-card: #0f0f0f;
+            --accent-cyan: #00d9ff;
+            --accent-cyan-dim: #0099cc;
+            --text-primary: #ffffff;
+            --text-secondary: #b4b4b4;
+            --text-muted: #6b6b6b;
+            --border: rgba(255, 255, 255, 0.06);
+            --glow-cyan: rgba(0, 217, 255, 0.4);
+            --error: #ff4444;
+            --success: #00ff88;
+            --warning: #ffaa00;
         }
 
+        /* Animations */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) translateX(0px); }
+            25% { transform: translateY(-20px) translateX(10px); }
+            50% { transform: translateY(0px) translateX(20px); }
+            75% { transform: translateY(20px) translateX(10px); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.05); }
+        }
+
+        @keyframes scanline {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100vh); }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes dataStream {
+            0% { transform: translateY(-100%); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(100vh); opacity: 0; }
+        }
+
+        @keyframes gridPulse {
+            0%, 100% { opacity: 0.05; }
+            50% { opacity: 0.15; }
+        }
+
+        @keyframes shimmerSweep {
+            0% { left: -100%; }
+            100% { left: 200%; }
+        }
+
+        @keyframes expandWidth {
+            to { width: 200px; }
+        }
+
+        @keyframes glowPulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(0, 217, 255, 0.3), 0 0 40px rgba(0, 217, 255, 0.1); }
+            50% { box-shadow: 0 0 30px rgba(0, 217, 255, 0.5), 0 0 60px rgba(0, 217, 255, 0.2); }
+        }
+
+        @keyframes slideRight {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, system-ui, sans-serif;
+            background: var(--bg-darker);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Animated Grid Background */
         body::before {
             content: '';
             position: fixed;
             top: 0;
             left: 0;
-            right: 0;
-            bottom: 0;
-            background-image:
-                radial-gradient(circle at 25px 25px, rgba(255, 255, 255, 0.03) 1px, transparent 0);
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 217, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 217, 255, 0.03) 1px, transparent 1px);
             background-size: 50px 50px;
+            animation: gridPulse 4s ease-in-out infinite;
             pointer-events: none;
-            opacity: 0.4;
-            z-index: -1;
+            z-index: 0;
         }
+
+        /* Scanline Effect */
+        body::after {
+            content: '';
+            position: fixed;
+            top: -100%;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+            box-shadow: 0 0 20px var(--glow-cyan);
+            animation: scanline 8s linear infinite;
+            pointer-events: none;
+            z-index: 50;
+            opacity: 0.3;
+        }
+
+        /* Particles Container */
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+            overflow: hidden;
+        }
+
+        .particle {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: var(--accent-cyan);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--glow-cyan);
+            animation: float 20s ease-in-out infinite;
+        }
+
+        .particle:nth-child(1) { top: 10%; left: 10%; animation-delay: 0s; }
+        .particle:nth-child(2) { top: 20%; left: 80%; animation-delay: 2s; opacity: 0.6; }
+        .particle:nth-child(3) { top: 60%; left: 20%; animation-delay: 4s; opacity: 0.4; }
+        .particle:nth-child(4) { top: 80%; left: 70%; animation-delay: 1s; opacity: 0.5; }
+        .particle:nth-child(5) { top: 30%; left: 50%; animation-delay: 3s; opacity: 0.7; }
+        .particle:nth-child(6) { top: 70%; left: 40%; animation-delay: 5s; opacity: 0.3; }
+        .particle:nth-child(7) { top: 50%; left: 15%; animation-delay: 6s; opacity: 0.5; }
+        .particle:nth-child(8) { top: 40%; left: 85%; animation-delay: 7s; opacity: 0.4; }
+
+        /* Data Stream Lines */
+        .data-stream {
+            position: absolute;
+            width: 1px;
+            height: 100px;
+            background: linear-gradient(180deg, transparent, var(--accent-cyan), transparent);
+            opacity: 0.3;
+            animation: dataStream 5s linear infinite;
+        }
+
+        .data-stream:nth-child(9) { left: 15%; animation-delay: 0s; }
+        .data-stream:nth-child(10) { left: 45%; animation-delay: 2s; }
+        .data-stream:nth-child(11) { left: 75%; animation-delay: 4s; }
+        .data-stream:nth-child(12) { left: 30%; animation-delay: 1s; }
 
         .container {
-            max-width: 1400px;
+            max-width: 1200px;
             margin: 0 auto;
-            padding: 2rem 1rem;
+            padding: 2rem 2rem 4rem;
+            position: relative;
+            z-index: 10;
         }
 
-        /* Header */
+        /* Header - Minimal and Powerful */
         .header {
             text-align: center;
-            margin-bottom: 2.5rem;
+            padding: 3rem 0 2rem;
             position: relative;
         }
 
-        .header h1 {
-            font-size: 3.5rem;
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, var(--glow-cyan) 0%, transparent 70%);
+            opacity: 0.1;
+            animation: pulse 6s ease-in-out infinite;
+            filter: blur(60px);
+        }
+
+        /* Logo */
+        .logo {
+            font-size: 4rem;
             font-weight: 800;
-            background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-purple) 50%, var(--accent-pink) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 0.75rem;
-            letter-spacing: -0.04em;
+            letter-spacing: -0.05em;
+            margin-bottom: 1rem;
+            position: relative;
+            display: inline-block;
+            animation: fadeInUp 0.8s ease-out;
         }
 
-        .header p {
-            font-size: 1.125rem;
+        .logo-text {
+            color: var(--text-primary);
+            display: inline;
+            position: relative;
+        }
+
+        .logo-ai {
+            color: var(--accent-cyan);
+            display: inline;
+            position: relative;
+            animation: pulse 3s ease-in-out infinite;
+            text-shadow: 
+                0 0 20px var(--glow-cyan),
+                0 0 40px var(--glow-cyan);
+        }
+
+        .logo::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 2px;
+            background: var(--accent-cyan);
+            animation: expandWidth 1.5s ease-out 0.5s forwards;
+            box-shadow: 0 0 20px var(--glow-cyan);
+        }
+
+        .tagline {
+            font-size: 1.25rem;
             color: var(--text-secondary);
-            max-width: 700px;
+            max-width: 600px;
             margin: 0 auto;
-            line-height: 1.6;
+            animation: fadeInUp 0.8s ease-out 0.2s both;
         }
 
-        /* Layout */
-        .main-wrapper {
+        /* Main Layout */
+        .main-content {
             display: grid;
             grid-template-columns: 1fr;
-            gap: 1.5rem;
+            gap: 2rem;
+            margin-top: 3rem;
         }
 
         @media (min-width: 1024px) {
-            .main-wrapper {
-                grid-template-columns: 420px 1fr;
-                gap: 2rem;
-                align-items: start;
+            .main-content {
+                grid-template-columns: 400px 1fr;
+                gap: 3rem;
             }
         }
 
-        /* Cards */
+        /* Card Styles */
         .card {
-            background: var(--card-bg);
-            border: 1px solid var(--card-border);
-            border-radius: var(--radius);
-            box-shadow: var(--shadow);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            overflow: hidden;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2rem;
             position: relative;
+            overflow: hidden;
+            animation: fadeInUp 0.8s ease-out 0.4s both;
         }
 
         .card::before {
             content: '';
             position: absolute;
-            inset: 0;
-            background: linear-gradient(135deg, rgba(0, 217, 255, 0.03) 0%, rgba(179, 71, 255, 0.03) 50%, rgba(255, 78, 205, 0.03) 100%);
-            pointer-events: none;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 217, 255, 0.05), transparent);
+            animation: shimmerSweep 4s ease-in-out infinite;
         }
 
-        .card-header {
-            padding: 1.5rem;
-            border-bottom: 1px solid var(--border);
+        .card-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
             position: relative;
-            z-index: 1;
-        }
-
-        .card-content {
-            padding: 1.5rem;
-            position: relative;
-            z-index: 1;
+            z-index: 2;
         }
 
         /* Module Tabs */
@@ -145,179 +305,441 @@
             display: flex;
             gap: 0.5rem;
             margin-bottom: 1.5rem;
-            padding: 0.5rem;
-            background: rgba(0, 0, 0, 0.25);
-            border-radius: var(--radius-sm);
-            border: 1px solid var(--border);
+            position: relative;
+            z-index: 2;
         }
 
         .module-tab {
             flex: 1;
             padding: 0.75rem 1rem;
             background: transparent;
-            border: none;
-            border-radius: var(--radius-xs);
+            border: 1px solid var(--border);
+            border-radius: 12px;
             color: var(--text-secondary);
             font-family: inherit;
             font-size: 0.9rem;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.3s ease;
             position: relative;
+            overflow: hidden;
+        }
+
+        .module-tab::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 217, 255, 0.1), transparent);
+            transition: left 0.3s ease;
+        }
+
+        .module-tab:hover::before {
+            left: 100%;
         }
 
         .module-tab.active {
-            background: rgba(0, 217, 255, 0.12);
+            background: rgba(0, 217, 255, 0.1);
+            border-color: var(--accent-cyan);
             color: var(--accent-cyan);
-            box-shadow: 0 4px 16px rgba(0, 217, 255, 0.12);
-        }
-
-        .module-tab:hover:not(.active) {
-            background: rgba(255, 255, 255, 0.04);
-            color: var(--text-primary);
+            box-shadow: 0 0 20px rgba(0, 217, 255, 0.2);
         }
 
         /* Forms */
         .form-group {
-            margin-bottom: 1.25rem;
+            margin-bottom: 1.5rem;
+            position: relative;
+            z-index: 2;
         }
 
-        .form-group label {
+        .label {
             display: block;
-            font-size: 0.85rem;
+            font-size: 0.9rem;
             font-weight: 600;
             color: var(--text-secondary);
             margin-bottom: 0.5rem;
         }
 
-        .input, .textarea, .select {
+        .required {
+            color: var(--accent-cyan);
+        }
+
+        input, textarea, select {
             width: 100%;
-            padding: 0.85rem 1rem;
-            background: rgba(0, 0, 0, 0.3);
+            padding: 0.875rem 1rem;
+            background: rgba(255, 255, 255, 0.02);
             border: 1px solid var(--border);
-            border-radius: var(--radius-xs);
+            border-radius: 12px;
             color: var(--text-primary);
             font-family: inherit;
             font-size: 0.95rem;
-            transition: all 0.2s ease;
+            transition: all 0.3s ease;
         }
 
-        .textarea {
-            resize: vertical;
-            min-height: 120px;
-            line-height: 1.5;
-        }
-
-        .input:focus, .textarea:focus, .select:focus {
+        input:focus, textarea:focus, select:focus {
             outline: none;
-            border-color: rgba(0, 217, 255, 0.5);
-            box-shadow: 0 0 0 3px rgba(0, 217, 255, 0.15);
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 0 3px rgba(0, 217, 255, 0.1);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        /* Task Cards */
+        .task-card {
+            background: rgba(255, 255, 255, 0.01);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            position: relative;
+            z-index: 2;
+        }
+
+        .task-number {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--accent-cyan);
+            margin-bottom: 1rem;
+            letter-spacing: 0.1em;
+        }
+
+        .input-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .input-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Help Badge */
+        .help-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            background: rgba(0, 217, 255, 0.1);
+            border: 1px solid rgba(0, 217, 255, 0.2);
+            border-radius: 50%;
+            color: var(--accent-cyan);
+            font-size: 0.7rem;
+            font-weight: 700;
+            margin-left: 0.5rem;
+            cursor: help;
         }
 
         /* Buttons */
         .btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.85rem 1.25rem;
-            border: 1px solid var(--border);
-            border-radius: var(--radius-xs);
-            background: rgba(255, 255, 255, 0.04);
-            color: var(--text-primary);
+            width: 100%;
+            padding: 1rem 1.5rem;
+            background: var(--accent-cyan);
+            border: none;
+            border-radius: 12px;
+            color: var(--bg-darker);
             font-family: inherit;
-            font-size: 0.9rem;
-            font-weight: 600;
+            font-size: 1rem;
+            font-weight: 700;
             cursor: pointer;
-            transition: all 0.2s ease;
-            text-decoration: none;
-            justify-content: center;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            z-index: 2;
         }
 
-        .btn:hover:not(:disabled) {
-            background: rgba(255, 255, 255, 0.06);
-            transform: translateY(-1px);
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.1), transparent);
+            animation: slideRight 2s ease-in-out infinite;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 217, 255, 0.3);
+            animation: glowPulse 2s ease-in-out infinite;
         }
 
         .btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
+            transform: none;
         }
 
-        /* Task List */
-        .task-item {
-            background: rgba(0, 0, 0, 0.2);
+        .btn-secondary {
+            background: transparent;
             border: 1px solid var(--border);
-            border-radius: var(--radius-xs);
-            padding: 1rem;
-            margin-bottom: 1rem;
-            position: relative;
+            color: var(--text-secondary);
+            margin-top: 1rem;
         }
 
-        .task-item-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 0.75rem;
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.02);
+            box-shadow: none;
+            animation: none;
         }
 
-        .task-number {
+        /* Task Counter */
+        .task-counter {
+            text-align: center;
+            margin-top: 1rem;
+            font-family: 'JetBrains Mono', monospace;
             font-size: 0.85rem;
-            font-weight: 700;
-            color: var(--accent-cyan);
-        }
-
-        .remove-task {
-            background: none;
-            border: none;
             color: var(--text-muted);
-            cursor: pointer;
-            font-size: 1.25rem;
-            padding: 0.25rem;
-            border-radius: 6px;
-            transition: all 0.2s ease;
         }
 
-        .remove-task:hover {
-            color: var(--accent-pink);
-            background: rgba(255, 78, 205, 0.12);
+        /* Methods */
+        .methods {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            position: relative;
+            z-index: 2;
         }
 
-        /* Results */
-        .results-container {
-            min-height: 200px;
-        }
-
-        .result-item {
-            background: rgba(0, 0, 0, 0.2);
+        .method-card {
+            padding: 1.25rem;
             border: 1px solid var(--border);
-            border-radius: var(--radius-xs);
-            padding: 1rem;
-            margin-bottom: 1rem;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.01);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
         }
 
-        .result-header {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
+        .method-card:hover:not(.disabled) {
+            border-color: rgba(0, 217, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .method-card.active {
+            border-color: var(--accent-cyan);
+            background: rgba(0, 217, 255, 0.05);
+            box-shadow: 0 0 20px rgba(0, 217, 255, 0.1);
+        }
+
+        .method-card.disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .method-title {
+            font-size: 0.95rem;
+            font-weight: 700;
             margin-bottom: 0.5rem;
         }
 
-        .result-rank {
-            width: 32 ̶3px;
-            height: 33px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 800;
-            font-size: 0.9rem;
-            color: var(--bg-darker);
+        .method-desc {
+            font-size: 0.8rem;
+            color: var(--text-muted);
         }
 
-        .result-title {
+        /* Results Section */
+        .results-section {
+            display: none;
+            position: relative;
+        }
+
+        .results-container {
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        .result-header {
+            margin-bottom: 2rem;
+            position: relative;
+            z-index: 2;
+        }
+
+        .result-message {
+            font-size: 1.25rem;
             font-weight: 700;
+            color: var(--accent-cyan);
+            margin-bottom: 0.75rem;
+        }
+
+        .result-summary {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            line-height: 1.6;
+        }
+
+        .stat-badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.2);
+            border-radius: 20px;
+            color: var(--success);
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-top: 1rem;
+        }
+
+        /* Order Table */
+        .order-table {
+            background: rgba(255, 255, 255, 0.01);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 2rem;
+        }
+
+        .table-header {
+            background: rgba(0, 217, 255, 0.05);
+            padding: 1rem;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .table-row {
+            display: grid;
+            grid-template-columns: 80px 1fr;
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.3s ease;
+        }
+
+        .table-row:last-child {
+            border-bottom: none;
+        }
+
+        .table-row:hover {
+            background: rgba(255, 255, 255, 0.01);
+        }
+
+        .table-rank {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--accent-cyan);
+            font-weight: 700;
+        }
+
+        .table-task {
             color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        /* Ranked Tasks */
+        .ranked-task {
+            background: rgba(255, 255, 255, 0.01);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            position: relative;
+            z-index: 2;
+        }
+
+        .rank-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            background: var(--accent-cyan);
+            border-radius: 50%;
+            color: var(--bg-darker);
+            font-weight: 800;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+
+        .rank-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+            color: var(--text-primary);
+        }
+
+        .rank-explanation {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin-bottom: 1rem;
+        }
+
+        .rank-points {
+            list-style: none;
+            margin-bottom: 1rem;
+        }
+
+        .rank-points li {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            padding-left: 1.5rem;
+            margin-bottom: 0.5rem;
+            position: relative;
+        }
+
+        .rank-points li::before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            color: var(--accent-cyan);
+            font-weight: 700;
+        }
+
+        .rank-tip {
+            padding: 1rem;
+            background: rgba(0, 217, 255, 0.05);
+            border: 1px solid rgba(0, 217, 255, 0.1);
+            border-radius: 10px;
+            color: var(--accent-cyan);
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        /* Loading */
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem;
+            text-align: center;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(0, 217, 255, 0.1);
+            border-top: 3px solid var(--accent-cyan);
+            border-radius: 50%;
+            animation: rotate 1s linear infinite;
+            margin-bottom: 1.5rem;
+        }
+
+        .loading-text {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        /* Error */
+        .error {
+            padding: 1.5rem;
+            background: rgba(255, 68, 68, 0.05);
+            border: 1px solid rgba(255, 68, 68, 0.2);
+            border-radius: 12px;
+            color: var(--error);
+            font-weight: 600;
+            text-align: center;
         }
 
         /* Module Content */
@@ -329,192 +751,619 @@
             display: block;
         }
 
-        .module-info {
-            background: rgba(0, 217, 255, 0.08);
-            border: 1px solid rgba(0, 217, 255, 0.2);
-            border-radius: var(--radius-xs);
-            padding: 1rem;
-            margin-bottom: 1.5rem;
-        }
-
-        .module-info p {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-            line-height: 1.5;
-        }
-
-        /* Action Button */
-        .action-bar {
-            margin: 1.75rem 0 0;
-            display: flex;
-            justify-content: flex-end;
-            align-items: center;
-        }
-
-        .btn-primary {
-            background: var(--accent-cyan);
-            color: var(--bg-darker);
-            border: 1px solid rgba(0, 217, 255, 0.35);
-            box-shadow:
-                0 8px 32px rgba(0, 217, 255, 0.25),
-                0 0 40px rgba(0, 217, 255, 0.15);
-        }
-
-        .btn-primary:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow:
-                0 10px 38px rgba(0, 217, 255, 0.3),
-                0 0 55px rgba(0, 217, 255, 0.2);
-        }
-
-        .btn-primary:active:not(:disabled) {
-            transform: translateY(0px);
-        }
-
-        @media (max-width: 768px) {
-            .action-bar { justify-content: stretch; }
-            .btn-primary { width: 100%; justify-content: center; }
-        }
-
-        /* Footer */
-        .footer {
-            margin-top: 3rem;
-            padding: 2rem 1rem;
-            border-top: 1px solid var(--border);
-            text-align: center;
-            color: var(--text-muted);
-            font-size: 0.875rem;
+        /* CalmAI specific styles */
+        .calmai-textarea {
+            min-height: 140px;
+            font-size: 1rem;
             line-height: 1.6;
         }
 
-        .footer a {
+        .calmai-response {
+            background: rgba(255, 255, 255, 0.01);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            color: var(--text-secondary);
+            font-size: 1rem;
+            line-height: 1.8;
+        }
+
+        /* BriefAI styles */
+        .brief-section {
+            background: rgba(255, 255, 255, 0.01);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .brief-title {
             color: var(--accent-cyan);
-            text-decoration: none;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+        }
+
+        .brief-content {
+            color: var(--text-secondary);
+            white-space: pre-wrap;
+            line-height: 1.7;
+        }
+
+        .brief-list {
+            list-style: none;
+        }
+
+        .brief-list li {
+            color: var(--text-secondary);
+            padding-left: 1.5rem;
+            margin-bottom: 0.75rem;
+            position: relative;
+        }
+
+        .brief-list li::before {
+            content: '•';
+            position: absolute;
+            left: 0;
+            color: var(--accent-cyan);
             font-weight: 700;
         }
 
-        .footer a:hover {
-            text-decoration: underline;
-        }
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem 1rem 3rem;
+            }
 
-        .footer-line {
-            margin: 0.25rem 0;
+            .logo {
+                font-size: 3rem;
+            }
+
+            .header {
+                padding: 2rem 0 1.5rem;
+            }
+
+            .card {
+                padding: 1.5rem;
+            }
+
+            .methods {
+                grid-template-columns: 1fr;
+            }
+
+            .table-row {
+                grid-template-columns: 60px 1fr;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header class="header">
-            <h1>PriorizAI</h1>
-            <p>Ferramentas simples para priorizar tarefas, reduzir atrito em mensagens e criar briefs objetivos.</p>
-        </header>
-
-        <div class="main-wrapper">
-            <!-- Left: Results -->
-            <div class="card" id="resultsSection">
-                <div class="card-header">
-                    <div class="module-tabs">
-                        <button class="module-tab active" data-module="priorizai">PriorizAI</button>
-                        <button class="module-tab" data-module="calmai">CalmAI</button>
-                        <button class="module-tab" data-module="briefai">BriefAI</button>
-                    </div>
-                    <div>
-                        <h2 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 0.35rem;">Resultado</h2>
-                        <p id="moduleDescription" style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.5;">
-                            Liste suas tarefas. Eu retorno uma ordem de prioridade clara.
-                        </p>
-                    </div>
-                </div>
-                <div class="card-content">
-                    <div id="resultsContainer" class="results-container">
-                        <div style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6;">
-                            Preencha os dados e clique em “Gerar”.
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Right: Inputs -->
-            <div class="card">
-                <div class="card-header">
-                    <h2 style="font-size: 1.25rem; font-weight: 800;">Entrada</h2>
-                    <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.5;">
-                        Quanto mais contexto, melhor o resultado.
-                    </p>
-                </div>
-                <div class="card-content">
-                    <!-- PriorizAI -->
-                    <div class="module-content active" data-module="priorizai">
-                        <div class="form-group">
-                            <label>Seu nome</label>
-                            <input class="input" id="priorizaiName" placeholder="Felipe Castelão" />
-                        </div>
-
-                        <div class="form-group">
-                            <label>Método</label>
-                            <select class="select" id="priorizaiMethod">
-                                <option value="impact_effort">Impacto x Esforço</option>
-                                <option value="urgency_importance">Urgência x Importância</option>
-                            </select>
-                        </div>
-
-                        <div class="module-info">
-                            <p>Adicione tarefas com título, contexto, importância e tempo estimado.</p>
-                        </div>
-
-                        <div id="taskList"></div>
-
-                        <button class="btn" id="addTaskBtn" type="button">+ Adicionar tarefa</button>
-                    </div>
-
-                    <!-- CalmAI -->
-                    <div class="module-content" data-module="calmai">
-                        <div class="form-group">
-                            <label>Seu nome</label>
-                            <input class="input" id="calmaiName" placeholder="Felipe Castelão" />
-                        </div>
-
-                        <div class="module-info">
-                            <p>A diva CalmAI reescreve sua mensagem com elegância, calma e objetividade. Você reduz atrito e ganha clareza para conversar com qualquer pessoa.</p>
-                        </div>
-
-                        <div class="form-group">
-                            <label>Sua mensagem</label>
-                            <textarea class="textarea" id="calmaiText" placeholder="Cole aqui o texto que você quer reescrever."></textarea>
-                        </div>
-                    </div>
-
-                    <!-- BriefAI -->
-                    <div class="module-content" data-module="briefai">
-                        <div class="form-group">
-                            <label>Seu nome</label>
-                            <input class="input" id="briefaiName" placeholder="Felipe Castelão" />
-                        </div>
-
-                        <div class="module-info">
-                            <p>Envie um texto longo. Eu retorno um resumo curto e bullets claros.</p>
-                        </div>
-
-                        <div class="form-group">
-                            <label>Texto</label>
-                            <textarea class="textarea" id="briefaiText" placeholder="Cole aqui o texto para resumir."></textarea>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Ação -->
-        <div class="action-bar">
-            <button class="btn btn-primary" id="processBtn" type="button">Gerar</button>
-        </div>
-
-        <footer class="footer">
-            <div class="footer-line">2025 - Felipe Castelão - Todos os direitos reservados</div>
-            <div class="footer-line">Desenvolvido por <a href="https://priorizai.felipelcas.workers.dev" target="_blank" rel="noopener">Felipe Castelão</a></div>
-        </footer>
+    <!-- Background Effects -->
+    <div class="particles">
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="data-stream"></div>
+        <div class="data-stream"></div>
+        <div class="data-stream"></div>
+        <div class="data-stream"></div>
     </div>
 
-    <script src="app.js" defer></script>
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <span class="logo-text">Prioriz</span><span class="logo-ai">AI</span>
+            </div>
+            <p class="tagline">Organize suas tarefas com inteligência. Priorize o que importa e economize tempo.</p>
+        </header>
+
+        <div class="main-content">
+            <!-- Input Section -->
+            <div class="card">
+                <div class="module-tabs">
+                    <button class="module-tab active" data-module="priorizai">PriorizAI</button>
+                    <button class="module-tab" data-module="calmai">CalmAI</button>
+                    <button class="module-tab" data-module="briefai">BriefAI</button>
+                </div>
+
+                <div class="card-title">Entrada</div>
+                <p id="moduleDescription" class="result-summary" style="margin-bottom: 2rem;">
+                    Liste suas tarefas e eu vou te ajudar a priorizar.
+                </p>
+
+                <!-- MODULE: PriorizAI -->
+                <div class="module-content active" data-module="priorizai">
+                    <div class="form-group">
+                        <label class="label">Seu nome <span class="required">*</span></label>
+                        <input type="text" id="userName" placeholder="Ex.: Felipe Castelão" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="label">Método de priorização</label>
+                        <div class="methods">
+                            <div class="method-card active" data-method="impact_effort">
+                                <div class="method-title">Impacto x Esforço</div>
+                                <div class="method-desc">Faça primeiro o que importa e é rápido</div>
+                            </div>
+                            <div class="method-card disabled">
+                                <div class="method-title">Urgência x Importância</div>
+                                <div class="method-desc">Em breve</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="taskList"></div>
+
+                    <button class="btn btn-secondary" id="addTaskBtn">+ Adicionar tarefa</button>
+                    <div class="task-counter">
+                        Tarefas: <span id="taskCounter">3/10</span>
+                    </div>
+
+                    <button class="btn" id="priorizaiProcessBtn" style="margin-top: 2rem;">
+                        Gerar Priorização
+                    </button>
+                </div>
+
+                <!-- MODULE: CalmAI -->
+                <div class="module-content" data-module="calmai">
+                    <div class="form-group">
+                        <label class="label">Seu nome <span class="required">*</span></label>
+                        <input type="text" id="calmaiUserName" placeholder="Ex.: Felipe Castelão" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="label">Conte seu problema <span class="required">*</span></label>
+                        <textarea id="calmaiText" class="calmai-textarea" placeholder="Ex.: Estou me sentindo pressionado porque tenho muitas coisas pra fazer e não consigo me organizar..." required></textarea>
+                    </div>
+
+                    <button class="btn" id="calmaiProcessBtn">
+                        Falar com a Diva do Caos
+                    </button>
+                </div>
+
+                <!-- MODULE: BriefAI -->
+                <div class="module-content" data-module="briefai">
+                    <div class="form-group">
+                        <label class="label">Seu nome <span class="required">*</span></label>
+                        <input type="text" id="briefaiUserName" placeholder="Ex.: Felipe Castelão" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="label">Texto para transformar em briefing <span class="required">*</span></label>
+                        <textarea id="briefaiText" class="calmai-textarea" placeholder="Cole aqui um texto longo, reunião, contexto de projeto, ou qualquer conteúdo que você queira transformar em briefing..." required></textarea>
+                    </div>
+
+                    <button class="btn" id="briefaiProcessBtn">
+                        Gerar Briefing
+                    </button>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div class="card results-section" id="resultsSection">
+                <div class="card-title">Resultado</div>
+                <div id="resultsContainer" class="results-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const WORKER_BASE_URL = "https://priorizai.felipelcas.workers.dev";
+        const MAX_TASKS = 10;
+        let taskCount = 3;
+        let currentModule = 'priorizai';
+
+        const MODULE_DESCRIPTIONS = {
+            priorizai: "Liste suas tarefas e eu vou te ajudar a priorizar.",
+            calmai: "Conte seu problema e receba um conselho provocador da Diva do Caos.",
+            briefai: "Cole um texto longo e transforme em um briefing estruturado."
+        };
+
+        // Utility functions
+        function normalizeBaseUrl(url) {
+            if (!url || typeof url !== 'string') return '';
+            url = url.trim();
+            if (url.endsWith('/')) url = url.slice(0, -1);
+            return url;
+        }
+
+        // Module switching
+        document.querySelectorAll('.module-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const module = tab.dataset.module;
+                switchModule(module);
+            });
+        });
+
+        function switchModule(module) {
+            currentModule = module;
+            
+            // Update tabs
+            document.querySelectorAll('.module-tab').forEach(t => t.classList.remove('active'));
+            document.querySelector(`.module-tab[data-module="${module}"]`).classList.add('active');
+            
+            // Update content
+            document.querySelectorAll('.module-content').forEach(c => c.classList.remove('active'));
+            document.querySelector(`.module-content[data-module="${module}"]`).classList.add('active');
+            
+            // Update description
+            document.getElementById('moduleDescription').textContent = MODULE_DESCRIPTIONS[module];
+            
+            // Hide results when switching modules
+            document.getElementById('resultsSection').style.display = 'none';
+        }
+
+        // PriorizAI - Task management
+        function initializeTasks() {
+            const container = document.getElementById('taskList');
+            container.innerHTML = '';
+            
+            for (let i = 1; i <= taskCount; i++) {
+                addTaskElement(i);
+            }
+            updateTaskCounter();
+        }
+
+        function addTaskElement(index) {
+            const container = document.getElementById('taskList');
+            const taskCard = document.createElement('div');
+            taskCard.className = 'task-card';
+            taskCard.innerHTML = `
+                <div class="task-number">Task ${index.toString().padStart(2, '0')}</div>
+                
+                <div class="form-group">
+                    <label class="label">O que você vai fazer <span class="required">*</span></label>
+                    <input type="text" class="task-title" placeholder="Ex.: Enviar planilha para o fornecedor" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="label">Explique bem <span class="required">*</span></label>
+                    <textarea class="task-desc" placeholder="Ex.: Enviar a planilha X para o fornecedor Y até 16h. Se atrasar, o pedido de amanhã pode travar." required></textarea>
+                </div>
+
+                <div class="input-row">
+                    <div class="form-group">
+                        <label class="label">
+                            Importância
+                            <span class="help-badge" title="Pense no impacto. Prazo aumenta a importância.">?</span>
+                        </label>
+                        <select class="task-importance">
+                            <option value="1">Quase não importa</option>
+                            <option value="2">Importa pouco</option>
+                            <option value="3" selected>Importa</option>
+                            <option value="4">Importa muito</option>
+                            <option value="5">É crítico</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="label">
+                            Tempo necessário
+                            <span class="help-badge" title="Tempo total estimado">?</span>
+                        </label>
+                        <select class="task-time">
+                            <option value="1">Menos de 10 min</option>
+                            <option value="2" selected>10 a 30 min</option>
+                            <option value="3">30 min a 2h</option>
+                            <option value="4">2 a 6 horas</option>
+                            <option value="5">Mais de 6h</option>
+                        </select>
+                    </div>
+                </div>
+            `;
+            container.appendChild(taskCard);
+        }
+
+        function updateTaskCounter() {
+            document.getElementById('taskCounter').textContent = `${taskCount}/${MAX_TASKS}`;
+            document.getElementById('addTaskBtn').disabled = taskCount >= MAX_TASKS;
+        }
+
+        document.getElementById('addTaskBtn').addEventListener('click', () => {
+            if (taskCount < MAX_TASKS) {
+                taskCount++;
+                addTaskElement(taskCount);
+                updateTaskCounter();
+            }
+        });
+
+        // Method selection
+        document.querySelectorAll('.method-card:not(.disabled)').forEach(card => {
+            card.addEventListener('click', () => {
+                document.querySelectorAll('.method-card').forEach(c => c.classList.remove('active'));
+                card.classList.add('active');
+            });
+        });
+
+        // Button listeners for each module
+        document.getElementById('priorizaiProcessBtn').addEventListener('click', processPriorizAI);
+        document.getElementById('calmaiProcessBtn').addEventListener('click', processCalmAI);
+        document.getElementById('briefaiProcessBtn').addEventListener('click', processBriefAI);
+
+        // Validation and API calls for each module
+        async function processPriorizAI() {
+            const userName = document.getElementById('userName').value.trim();
+            if (!userName) {
+                alert('Por favor, preencha seu nome.');
+                return;
+            }
+
+            const tasks = Array.from(document.querySelectorAll('.task-card'))
+                .map(task => {
+                    const title = task.querySelector('.task-title').value.trim();
+                    const description = task.querySelector('.task-desc').value.trim();
+                    const importance = parseInt(task.querySelector('.task-importance').value, 10);
+                    const time_cost = parseInt(task.querySelector('.task-time').value, 10);
+                    
+                    const impEl = task.querySelector('.task-importance');
+                    const timeEl = task.querySelector('.task-time');
+                    const importance_label = impEl.options[impEl.selectedIndex]?.text || '';
+                    const time_label = timeEl.options[timeEl.selectedIndex]?.text || '';
+
+                    return { title, description, importance, time_cost, importance_label, time_label };
+                })
+                .filter(task => task.title && task.description);
+
+            if (tasks.length < 3) {
+                alert('Por favor, preencha no mínimo 3 tarefas completas.');
+                return;
+            }
+
+            const method = document.querySelector('.method-card.active')?.dataset.method || 'impact_effort';
+
+            showLoading();
+            setBusy(true);
+
+            try {
+                const data = await callAPI('/prioritize', {
+                    name: userName,
+                    method: method,
+                    tasks: tasks
+                });
+                displayPriorizAIResults(data);
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                setBusy(false);
+            }
+        }
+
+        async function processCalmAI() {
+            const userName = document.getElementById('calmaiUserName').value.trim();
+            const text = document.getElementById('calmaiText').value.trim();
+
+            if (!userName) {
+                alert('Por favor, preencha seu nome.');
+                return;
+            }
+
+            if (!text || text.length < 10) {
+                alert('Por favor, escreva pelo menos 10 caracteres sobre seu problema.');
+                return;
+            }
+
+            showLoading();
+            setBusy(true);
+
+            try {
+                const data = await callAPI('/calmai', {
+                    name: userName,
+                    text: text
+                });
+                displayCalmAIResults(data);
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                setBusy(false);
+            }
+        }
+
+        async function processBriefAI() {
+            const userName = document.getElementById('briefaiUserName').value.trim();
+            const text = document.getElementById('briefaiText').value.trim();
+
+            if (!userName) {
+                alert('Por favor, preencha seu nome.');
+                return;
+            }
+
+            if (!text || text.length < 20) {
+                alert('Por favor, escreva pelo menos 20 caracteres.');
+                return;
+            }
+
+            showLoading();
+            setBusy(true);
+
+            try {
+                const data = await callAPI('/briefai', {
+                    name: userName,
+                    text: text
+                });
+                displayBriefAIResults(data);
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                setBusy(false);
+            }
+        }
+
+        // API call helper
+        async function callAPI(endpoint, data) {
+            const base = normalizeBaseUrl(WORKER_BASE_URL);
+            if (!base || base === "A_URL_DO_SEU_WORKER") {
+                throw new Error('URL do Worker não configurada.');
+            }
+
+            const url = `${base}${endpoint}`;
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            const text = await resp.text();
+            let json;
+            try { json = JSON.parse(text); } catch { json = null; }
+
+            if (!resp.ok) {
+                const msg = (json && (json.error || json.message)) ? (json.error || json.message) : text;
+                throw new Error(msg || `Erro HTTP ${resp.status}`);
+            }
+
+            return json || {};
+        }
+
+        // Display results
+        function showLoading() {
+            document.getElementById('resultsSection').style.display = 'block';
+            const container = document.getElementById('resultsContainer');
+            container.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <div class="loading-text">Processando...</div>
+                </div>
+            `;
+        }
+
+        function showError(message) {
+            document.getElementById('resultsSection').style.display = 'block';
+            document.getElementById('resultsContainer').innerHTML = `
+                <div class="error">${escapeHtml(message)}</div>
+            `;
+        }
+
+        function displayPriorizAIResults(data) {
+            const container = document.getElementById('resultsContainer');
+
+            const ordered = Array.isArray(data.ordered_tasks) ? data.ordered_tasks : [];
+            if (!ordered.length) {
+                showError('Resposta inválida da IA.');
+                return;
+            }
+
+            const orderTableHTML = `
+                <div class="order-table">
+                    <div class="table-header">Ordem de execução</div>
+                    ${ordered.map(task => `
+                        <div class="table-row">
+                            <div class="table-rank">#${task.position}</div>
+                            <div class="table-task">${escapeHtml(task.task_title)}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            const rankedListHTML = ordered.map(task => `
+                <div class="ranked-task">
+                    <div class="rank-badge">${task.position}</div>
+                    <div class="rank-title">${escapeHtml(task.task_title)}</div>
+                    ${task.explanation ? `<div class="rank-explanation">${escapeHtml(task.explanation)}</div>` : ''}
+                    ${Array.isArray(task.key_points) && task.key_points.length ? `
+                        <ul class="rank-points">
+                            ${task.key_points.map(p => `<li>${escapeHtml(p)}</li>`).join('')}
+                        </ul>
+                    ` : ''}
+                    ${task.tip ? `<div class="rank-tip">${escapeHtml(task.tip)}</div>` : ''}
+                </div>
+            `).join('');
+
+            const statHTML = data.estimated_time_saved_percent !== null && data.estimated_time_saved_percent !== undefined
+                ? `<div class="stat-badge">📊 Tempo economizado: ${data.estimated_time_saved_percent}%</div>` 
+                : '';
+
+            container.innerHTML = `
+                <div class="result-header">
+                    <div class="result-message">${escapeHtml(data.friendly_message || 'Priorização concluída')}</div>
+                    ${data.summary ? `<div class="result-summary">${escapeHtml(data.summary)}</div>` : ''}
+                    ${statHTML}
+                </div>
+                ${orderTableHTML}
+                <div class="ranked-list">${rankedListHTML}</div>
+            `;
+        }
+
+        function displayCalmAIResults(data) {
+            const container = document.getElementById('resultsContainer');
+            
+            container.innerHTML = `
+                <div class="result-header">
+                    <div class="result-message">💭 Diva do Caos responde</div>
+                </div>
+                <div class="calmai-response">
+                    ${escapeHtml(data.reply || 'Sem resposta').split('\n').map(p => `<p style="margin-bottom: 1rem;">${p}</p>`).join('')}
+                </div>
+            `;
+        }
+
+        function displayBriefAIResults(data) {
+            const container = document.getElementById('resultsContainer');
+            
+            const missingInfoHTML = Array.isArray(data.missingInfo) && data.missingInfo.length 
+                ? `<div class="brief-section">
+                    <div class="brief-title">📌 Informações Faltando</div>
+                    <ul class="brief-list">
+                        ${data.missingInfo.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
+                    </ul>
+                   </div>`
+                : '';
+
+            const nextStepsHTML = Array.isArray(data.nextSteps) && data.nextSteps.length
+                ? `<div class="brief-section">
+                    <div class="brief-title">🎯 Próximos Passos</div>
+                    <ul class="brief-list">
+                        ${data.nextSteps.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
+                    </ul>
+                   </div>`
+                : '';
+
+            container.innerHTML = `
+                <div class="result-header">
+                    <div class="result-message">${escapeHtml(data.friendlyMessage || 'Briefing gerado')}</div>
+                    ${data.summary ? `<div class="result-summary">${escapeHtml(data.summary)}</div>` : ''}
+                </div>
+
+                <div class="brief-section">
+                    <div class="brief-title">📄 Briefing Estruturado</div>
+                    <div class="brief-content">${escapeHtml(data.brief || '')}</div>
+                </div>
+
+                ${missingInfoHTML}
+                ${nextStepsHTML}
+            `;
+        }
+
+        function escapeHtml(str) {
+            return String(str || '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+        }
+
+        function setBusy(isBusy) {
+            const buttons = {
+                'priorizai': document.getElementById('priorizaiProcessBtn'),
+                'calmai': document.getElementById('calmaiProcessBtn'),
+                'briefai': document.getElementById('briefaiProcessBtn')
+            };
+            
+            const btn = buttons[currentModule];
+            if (btn) {
+                btn.disabled = !!isBusy;
+                btn.style.opacity = isBusy ? '0.5' : '1';
+            }
+        }
+
+        // Initialize
+        initializeTasks();
+    </script>
 </body>
 </html>
