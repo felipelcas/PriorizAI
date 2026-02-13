@@ -16,6 +16,12 @@
     briefai: "Cole qualquer texto bagunçado. Eu transformo em um briefing organizado e objetivo.",
   };
 
+  const PROCESS_BUTTON_LABELS = {
+    priorizai: "✨ Priorizar tarefas",
+    calmai: "✨ Gerar resposta",
+    briefai: "✨ Gerar briefing",
+  };
+
   const IMPORTANCE = [
     { label: "Quase não importa", value: 1 },
     { label: "Importa pouco", value: 2 },
@@ -148,6 +154,20 @@
     return data || {};
   }
 
+  function updateProcessButtonLabel(module) {
+    const btn = $("processBtn");
+    if (!btn) return;
+    btn.textContent = PROCESS_BUTTON_LABELS[module] || "✨ Gerar com IA";
+  }
+
+  function moveProcessButtonToModule(module) {
+    const btn = $("processBtn");
+    if (!btn) return;
+    const slot = document.querySelector(`.process-slot[data-module="${module}"]`);
+    if (slot) slot.appendChild(btn);
+    updateProcessButtonLabel(module);
+  }
+
   // ========= UI: MODULE SWITCH =========
   function switchModule(module) {
     currentModule = module;
@@ -163,6 +183,8 @@
 
     const resultsSection = $("resultsSection");
     if (resultsSection) resultsSection.style.display = "none";
+
+    moveProcessButtonToModule(module);
   }
 
   function initModuleTabs() {
