@@ -76,8 +76,6 @@ function isLimitedPath(pathname) {
 }
 
 function getDailyLimit(env) {
-  // Lê do painel: Variables (não secret)
-  // Aceita string ou número. Fallback: 3.
   const raw = env?.IP_DAILY_LIMIT;
   const n = Number(raw);
   if (!Number.isFinite(n) || !Number.isInteger(n) || n < 1) return 3;
