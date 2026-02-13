@@ -1,137 +1,90 @@
-/* app.js - PriorizAI + CalmAI + BriefAI (novo layout) */
+/* ===== Priorizaí (novo layout) | app.js =====
+   - Mantém a navegação por módulos
+   - Botão "Gerar" fixo no final do formulário do módulo ativo
+   - Integra com o Worker via endpoints /prioritize, /calmai, /briefai
+*/
+
 (() => {
   "use strict";
 
   // ========= CONFIG =========
-  // Cole aqui a URL do seu Worker (sempre com https://)
-  // Exemplo: https://priorizai.felipelcas.workers.dev
   const WORKER_BASE_URL = "https://priorizai.felipelcas.workers.dev";
 
-  const MAX_TASKS = 10;
-  const MIN_TASKS = 3;
+  const MODULE_ENDPOINTS = {
+    prioritize: "/prioritize",
+    calmai: "/calmai",
+    briefai: "/briefai",
+  };
+
+  const MODULE_TITLES = {
+    prioritize: "PriorizAI",
+    calmai: "CalmAI",
+    briefai: "BriefAI",
+  };
 
   const MODULE_DESCRIPTIONS = {
-    priorizai: "Você escreve suas tarefas. Eu coloco na melhor ordem e explico de um jeito fácil.",
-    calmai: "Conte seu problema. A Diva do Caos vai te provocar, cutucar e te ajudar a ver de outro jeito.",
-    briefai: "Cole qualquer texto bagunçado. Eu transformo em um briefing organizado e objetivo.",
+    prioritize: "Organize e priorize tarefas com critérios simples e objetivo.",
+    calmai: "Reescreva mensagens para um tom mais calmo e assertivo.",
+    briefai: "Resuma textos longos em um formato executivo e direto.",
   };
 
   const PROCESS_BUTTON_LABELS = {
-    priorizai: "✨ Priorizar tarefas",
-    calmai: "✨ Gerar resposta",
-    briefai: "✨ Gerar briefing",
+    prioritize: "✨ Gerar priorização",
+    calmai: "✨ Gerar versão calma",
+    briefai: "✨ Gerar resumo",
   };
 
-  const IMPORTANCE = [
-    { label: "Quase não importa", value: 1 },
-    { label: "Importa pouco", value: 2 },
-    { label: "Importa", value: 3 },
-    { label: "Importa muito", value: 4 },
-    { label: "É crítico", value: 5 },
-  ];
+  // ========= STATE =========
+  let currentModule = "prioritize";
+  let selectedMethod = "impact_effort";
 
-  const TIME_COST = [
-    { label: "Menos de 10 min", value: 1 },
-    { label: "10 a 30 min", value: 2 },
-    { label: "30 min a 2h", value: 3 },
-    { label: "2 a 6 horas", value: 4 },
-    { label: "Mais de 6h", value: 5 },
-  ];
-
-  // ========= HELPERS =========
+  // ========= UTILS =========
   const $ = (id) => document.getElementById(id);
 
-  function normalizeBaseUrl(url) {
-    const raw = String(url || "").trim();
-    if (!raw) return "";
-    const withProto = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
-    return withProto.replace(/\/+$/, "");
+  function escapeHtml(s) {
+    return String(s || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
   }
 
-  function looksLikeInjection(text) {
-    const t = String(text || "").toLowerCase();
-
-    const xss = [
-      "<script",
-      "</script",
-      "<iframe",
-      "<object",
-      "<embed",
-      "<svg",
-      "javascript:",
-      "onerror=",
-      "onload=",
-    ];
-    if (xss.some((p) => t.includes(p))) return true;
-
-    const sqli = [
-      " union select",
-      "drop table",
-      "insert into",
-      "delete from",
-      "update ",
-      " or 1=1",
-      "' or '1'='1",
-      "\" or \"1\"=\"1",
-      "--",
-      "/*",
-      "*/",
-    ];
-    if (sqli.some((p) => t.includes(p))) return true;
-
-    return false;
+  function safeTrim(s) {
+    return String(s || "").trim();
   }
 
-  function cleanText(text) {
-    return String(text || "").replace(/\u0000/g, "").trim();
+  function setText(id, value) {
+    const el = $(id);
+    if (el) el.textContent = value;
   }
 
-  function requireSafeText(fieldName, value, { required = false, min = 0, max = 9999 } = {}) {
-    const v = cleanText(value);
-
-    if (required && !v) throw new Error(`Preencha: ${fieldName}.`);
-    if (!required && !v) return "";
-
-    if (v.length < min) throw new Error(`${fieldName} está muito curto.`);
-    if (v.length > max) throw new Error(`${fieldName} passou do limite de caracteres.`);
-
-    if (looksLikeInjection(v)) {
-      throw new Error(`${fieldName} parece ter conteúdo perigoso. Ajuste o texto e tente de novo.`);
-    }
-    return v;
+  function setValue(id, value) {
+    const el = $(id);
+    if (el) el.value = value;
   }
 
-  function escapeHtml(str) {
-    return String(str || "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
+  function getValue(id) {
+    const el = $(id);
+    return el ? el.value : "";
+  }
+
+  function show(id) {
+    const el = $(id);
+    if (el) el.style.display = "block";
+  }
+
+  function hide(id) {
+    const el = $(id);
+    if (el) el.style.display = "none";
   }
 
   function scrollToResults() {
     const section = $("resultsSection");
-    if (!section) return;
-    section.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (section) section.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  // ========= STATE =========
-  let currentModule = "priorizai";
-  let selectedMethod = "impact_effort";
-  let taskCount = MIN_TASKS;
-
-  // ========= API =========
-  function getApiUrls() {
-    const base = normalizeBaseUrl(WORKER_BASE_URL);
-    return {
-      base,
-      prioritize: base ? `${base}/prioritize` : "",
-      calmai: base ? `${base}/calmai` : "",
-      briefai: base ? `${base}/briefai` : "",
-    };
-  }
-
+  // ========= WORKER CALL =========
   async function callWorkerJson(url, payload) {
     const res = await fetch(url, {
       method: "POST",
@@ -139,18 +92,41 @@
       body: JSON.stringify(payload),
     });
 
-    const text = await res.text();
+    const raw = await res.text();
     let data = null;
     try {
-      data = text ? JSON.parse(text) : null;
+      data = raw ? JSON.parse(raw) : null;
     } catch {
-      // ignore
+      // resposta não JSON
     }
 
     if (!res.ok) {
-      const msg = (data && (data.error || data.message)) || text || "Erro ao chamar o Worker.";
-      throw new Error(msg);
+      const status = res.status;
+      const code = (data && (data.code || data.error_code)) || "";
+
+      // Mensagens mais amigáveis, com base no status e no código retornado pelo Worker.
+      if (status === 429 || code === "RATE_LIMITED") {
+        const limit = Number(data?.limit ?? 3);
+        const resetAt = data?.resetAt;
+
+        const msgReset = resetAt ? `Tente novamente em ${formatDateTimeBR(resetAt)}.` : "Tente novamente amanhã.";
+        const msg = `Limite diário atingido. Você pode usar até ${limit} vezes por dia por IP. ${msgReset}`;
+
+        const err = new Error(msg);
+        err.code = "RATE_LIMITED";
+        err.status = status;
+        err.details = data;
+        throw err;
+      }
+
+      const msg = (data && (data.message || data.error)) || raw || "Erro ao chamar o serviço.";
+      const err = new Error(msg);
+      err.code = code || "WORKER_ERROR";
+      err.status = status;
+      err.details = data;
+      throw err;
     }
+
     return data || {};
   }
 
@@ -190,9 +166,9 @@
   function initModuleTabs() {
     document.querySelectorAll(".module-tab").forEach((tab) => {
       tab.addEventListener("click", () => {
-        const module = tab.dataset.module;
-        if (!module) return;
-        switchModule(module);
+        const m = tab.dataset.module;
+        if (!m) return;
+        switchModule(m);
       });
     });
   }
@@ -212,120 +188,89 @@
     });
   }
 
-  // ========= UI: TASKS =========
-  function optionHtml(list, selectedValue) {
-    return list
-      .map((o) => {
-        const sel = o.value === selectedValue ? " selected" : "";
-        return `<option value="${o.value}"${sel}>${escapeHtml(o.label)}</option>`;
-      })
-      .join("");
+  // ========= TASK LIST =========
+  function getTasksFromUI() {
+    const rows = document.querySelectorAll(".task-row");
+    const tasks = [];
+
+    rows.forEach((row) => {
+      const title = safeTrim(row.querySelector(".task-title")?.value || "");
+      const context = safeTrim(row.querySelector(".task-context")?.value || "");
+      const impact = safeTrim(row.querySelector(".task-impact")?.value || "");
+      const effort = safeTrim(row.querySelector(".task-effort")?.value || "");
+
+      if (title) {
+        tasks.push({ title, context, impact, effort });
+      }
+    });
+
+    return tasks;
   }
 
-  function addTaskElement(index) {
-    const container = $("taskList");
+  function addTaskRow(initial = {}) {
+    const container = $("tasksContainer");
     if (!container) return;
 
-    const taskCard = document.createElement("div");
-    taskCard.className = "task-card";
-    taskCard.innerHTML = `
-      <div class="task-number">Task ${String(index).padStart(2, "0")}</div>
+    const div = document.createElement("div");
+    div.className = "task-row";
 
-      <div class="form-group">
-        <label class="label">O que você vai fazer <span class="required">*</span></label>
-        <input type="text" class="task-title" placeholder="Ex.: Enviar planilha para o fornecedor" required>
+    div.innerHTML = `
+      <div class="row-head">
+        <div class="row-title">Tarefa</div>
+        <button type="button" class="icon-btn remove-task" title="Remover">✕</button>
       </div>
 
-      <div class="form-group">
-        <label class="label">Explique bem <span class="required">*</span></label>
-        <textarea class="task-desc" placeholder="Ex.: Enviar a planilha X para o fornecedor Y até 16h. Se atrasar, o pedido de amanhã pode travar." required></textarea>
-      </div>
+      <label class="field">
+        <span class="label">Título</span>
+        <input class="task-title" placeholder="Ex.: Revisar funil de vendas" value="${escapeHtml(
+          initial.title || ""
+        )}" />
+      </label>
 
-      <div class="input-row">
-        <div class="form-group">
-          <label class="label">Importância <span class="help-badge" title="Pense no impacto. Prazo aumenta a importância.">?</span></label>
-          <select class="task-importance">
-            ${optionHtml(IMPORTANCE, 3)}
-          </select>
-        </div>
+      <label class="field">
+        <span class="label">Contexto</span>
+        <textarea class="task-context" rows="2" placeholder="Ex.: Q1, foco em conversão">${escapeHtml(
+          initial.context || ""
+        )}</textarea>
+      </label>
 
-        <div class="form-group">
-          <label class="label">Tempo necessário <span class="help-badge" title="Tempo total estimado">?</span></label>
-          <select class="task-time">
-            ${optionHtml(TIME_COST, 2)}
-          </select>
-        </div>
+      <div class="grid-2">
+        <label class="field">
+          <span class="label">Impacto</span>
+          <input class="task-impact" placeholder="Ex.: Alto" value="${escapeHtml(initial.impact || "")}" />
+        </label>
+        <label class="field">
+          <span class="label">Esforço</span>
+          <input class="task-effort" placeholder="Ex.: Médio" value="${escapeHtml(initial.effort || "")}" />
+        </label>
       </div>
     `;
 
-    container.appendChild(taskCard);
+    div.querySelector(".remove-task")?.addEventListener("click", () => {
+      div.remove();
+      updateTaskCount();
+    });
+
+    container.appendChild(div);
+    updateTaskCount();
   }
 
-  function updateTaskCounter() {
-    const el = $("taskCounter");
-    if (el) el.textContent = `${taskCount}/${MAX_TASKS}`;
-
-    const btn = $("addTaskBtn");
-    if (btn) btn.disabled = taskCount >= MAX_TASKS;
+  function updateTaskCount() {
+    const count = document.querySelectorAll(".task-row").length;
+    setText("taskCount", String(count));
   }
 
-  function initializeTasks() {
-    const container = $("taskList");
-    if (!container) return;
-
-    container.innerHTML = "";
-    for (let i = 1; i <= taskCount; i++) addTaskElement(i);
-    updateTaskCounter();
+  function initTaskControls() {
+    $("addTaskBtn")?.addEventListener("click", () => addTaskRow());
   }
 
-  function addTask() {
-    if (taskCount >= MAX_TASKS) return;
-    taskCount += 1;
-    addTaskElement(taskCount);
-    updateTaskCounter();
-  }
-
-  // ========= UI: RESULTS =========
-  function showLoading(text) {
+  // ========= RESULTS RENDER =========
+  function renderPrioritizeResult(data) {
     const section = $("resultsSection");
     const container = $("resultsContainer");
     if (!section || !container) return;
 
     section.style.display = "block";
-    container.innerHTML = `
-      <div class="loading">
-        <div class="spinner"></div>
-        <div class="loading-text">${escapeHtml(text || "Processando com IA...")}</div>
-      </div>
-    `;
-    scrollToResults();
-  }
-
-  function showError(message) {
-    const section = $("resultsSection");
-    const container = $("resultsContainer");
-    if (!section || !container) return;
-
-    section.style.display = "block";
-    container.innerHTML = `
-      <div class="result-empty">
-        <div class="result-icon">❌</div>
-        <p>${escapeHtml(message || "Erro ao processar. Tente novamente.")}</p>
-      </div>
-    `;
-    scrollToResults();
-  }
-
-  function setBusy(isBusy) {
-    const btn = $("processBtn");
-    if (!btn) return;
-    btn.disabled = !!isBusy;
-    btn.style.opacity = isBusy ? "0.6" : "1";
-  }
-
-  function displayPriorizaiResults(data) {
-    const container = $("resultsContainer");
-    if (!container) return;
 
     const ordered = Array.isArray(data.ordered_tasks) ? data.ordered_tasks : [];
 
@@ -343,233 +288,264 @@
       <table class="order-table">
         <thead>
           <tr>
-            <th style="width: 80px;">Ordem</th>
+            <th style="width: 90px;">Ordem</th>
             <th>Tarefa</th>
           </tr>
         </thead>
-        <tbody>${orderRows || '<tr><td colspan="2">Sem itens</td></tr>'}</tbody>
+        <tbody>
+          ${orderRows || `<tr><td colspan="2" style="opacity:.7;">Sem itens retornados.</td></tr>`}
+        </tbody>
       </table>
     `;
 
-    const rankedListHTML = ordered
-      .map((task) => {
-        const keyPoints = Array.isArray(task.key_points) ? task.key_points : [];
-        return `
-          <div class="ranked-item">
-            <div class="ranked-header">
-              <div class="rank-number">${escapeHtml(task.position)}</div>
-              <div class="rank-title">${escapeHtml(task.task_title)}</div>
-            </div>
-            ${task.explanation ? `<div class="rank-explanation">${escapeHtml(task.explanation)}</div>` : ""}
-            ${
-              keyPoints.length
-                ? `<ul class="key-points">${keyPoints.map((p) => `<li>${escapeHtml(p)}</li>`).join("")}</ul>`
-                : ""
-            }
-            ${task.tip ? `<div class="rank-tip">${escapeHtml(task.tip)}</div>` : ""}
-          </div>
-        `;
-      })
+    container.innerHTML = `
+      <div class="results-header">
+        <div class="results-title">${escapeHtml(MODULE_TITLES.prioritize)}</div>
+        <div class="results-subtitle">Resultado gerado com base nas tarefas informadas.</div>
+      </div>
+
+      <div class="results-card">
+        ${orderTableHTML}
+      </div>
+    `;
+
+    scrollToResults();
+  }
+
+  function renderCalmAIResult(data) {
+    const section = $("resultsSection");
+    const container = $("resultsContainer");
+    if (!section || !container) return;
+
+    section.style.display = "block";
+
+    const text = safeTrim(data.rewritten_text || "");
+
+    container.innerHTML = `
+      <div class="results-header">
+        <div class="results-title">${escapeHtml(MODULE_TITLES.calmai)}</div>
+        <div class="results-subtitle">Mensagem reescrita em um tom mais calmo.</div>
+      </div>
+
+      <div class="results-card">
+        <div class="result-text">${escapeHtml(text || "Sem texto retornado.")}</div>
+        <div class="result-actions">
+          <button type="button" class="btn" id="copyCalmBtn">Copiar</button>
+        </div>
+      </div>
+    `;
+
+    $("copyCalmBtn")?.addEventListener("click", () => {
+      navigator.clipboard.writeText(text || "").catch(() => {});
+    });
+
+    scrollToResults();
+  }
+
+  function renderBriefAIResult(data) {
+    const section = $("resultsSection");
+    const container = $("resultsContainer");
+    if (!section || !container) return;
+
+    section.style.display = "block";
+
+    const summary = safeTrim(data.summary || "");
+    const bullets = Array.isArray(data.bullets) ? data.bullets : [];
+
+    const bulletsHtml = bullets
+      .map((b) => `<li>${escapeHtml(b)}</li>`)
       .join("");
 
-    const statHTML =
-      data.estimated_time_saved_percent !== null && data.estimated_time_saved_percent !== undefined
-        ? `<div class="stat-badge">📊 Tempo economizado: ${escapeHtml(data.estimated_time_saved_percent)}%</div>`
-        : "";
-
     container.innerHTML = `
-      <div class="result-header">
-        <div class="result-message">${escapeHtml(data.friendly_message || "Priorização concluída")}</div>
-        ${data.summary ? `<div class="result-summary">${escapeHtml(data.summary)}</div>` : ""}
-        ${statHTML}
+      <div class="results-header">
+        <div class="results-title">${escapeHtml(MODULE_TITLES.briefai)}</div>
+        <div class="results-subtitle">Resumo em formato executivo.</div>
       </div>
-      ${orderTableHTML}
-      <div class="ranked-list">${rankedListHTML}</div>
+
+      <div class="results-card">
+        <div class="result-text">${escapeHtml(summary || "Sem resumo retornado.")}</div>
+
+        ${
+          bullets.length
+            ? `<div class="result-bullets">
+                <div class="bullets-title">Pontos principais</div>
+                <ul>${bulletsHtml}</ul>
+              </div>`
+            : ""
+        }
+
+        <div class="result-actions">
+          <button type="button" class="btn" id="copyBriefBtn">Copiar</button>
+        </div>
+      </div>
     `;
+
+    $("copyBriefBtn")?.addEventListener("click", () => {
+      const full = [summary, bullets.map((b) => `• ${b}`).join("\n")].filter(Boolean).join("\n\n");
+      navigator.clipboard.writeText(full).catch(() => {});
+    });
+
+    scrollToResults();
   }
 
-  function displayCalmaiResults(data) {
+  function formatDateTimeBR(isoOrText) {
+    try {
+      const d = new Date(isoOrText);
+      if (Number.isNaN(d.getTime())) return String(isoOrText || "");
+      return new Intl.DateTimeFormat("pt-BR", {
+        timeZone: "America/Sao_Paulo",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(d);
+    } catch {
+      return String(isoOrText || "");
+    }
+  }
+
+  function showError(err) {
+    const section = $("resultsSection");
     const container = $("resultsContainer");
-    if (!container) return;
+    if (!section || !container) return;
 
-    const reply = String(data.reply || "Sem resposta");
-    const paragraphs = reply
-      .split("\n")
-      .map((p) => p.trim())
-      .filter(Boolean)
-      .map((p) => `<p style="margin-bottom: 1rem;">${escapeHtml(p)}</p>`)
-      .join("");
+    const e = typeof err === "string" ? { message: err } : (err || {});
+    const code = e.code || "";
+    const status = e.status || "";
+    const details = e.details || {};
 
+    let icon = "❌";
+    let title = "Não foi possível gerar";
+    let message = e.message || "Erro ao processar. Tente novamente.";
+    let hint = "Confira sua conexão e tente novamente.";
+
+    if (code === "RATE_LIMITED" || status === 429) {
+      icon = "🛡️";
+      title = "Limite diário atingido";
+      const limit = Number(details?.limit ?? 3);
+      const resetAt = details?.resetAt;
+
+      const resetText = resetAt ? `Você poderá tentar novamente em ${formatDateTimeBR(resetAt)}.` : "Você poderá tentar novamente amanhã.";
+      message = `Você pode usar até ${limit} vezes por dia por IP. ${resetText}`;
+      hint = "Se você estiver em uma rede compartilhada, o limite pode valer para mais de uma pessoa.";
+    }
+
+    section.style.display = "block";
     container.innerHTML = `
-      <div class="result-header">
-        <div class="result-message">💭 Diva do Caos responde</div>
+      <div class="result-empty">
+        <div class="result-icon">${icon}</div>
+        <div style="font-weight:700;margin:6px 0 10px 0;">${escapeHtml(title)}</div>
+        <p>${escapeHtml(message)}</p>
+        <p style="opacity:.85;font-size:.95em;margin-top:10px;">${escapeHtml(hint)}</p>
       </div>
-      <div class="calmai-response">${paragraphs || `<p>${escapeHtml(reply)}</p>`}</div>
     `;
+    scrollToResults();
   }
 
-  function displayBriefaiResults(data) {
-    const container = $("resultsContainer");
-    if (!container) return;
-
-    const missingInfo = Array.isArray(data.missingInfo) ? data.missingInfo : [];
-    const nextSteps = Array.isArray(data.nextSteps) ? data.nextSteps : [];
-
-    const missingInfoHTML = missingInfo.length
-      ? `
-        <div class="brief-section">
-          <div class="brief-title">📌 Informações Faltando</div>
-          <ul class="brief-list">
-            ${missingInfo.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
-          </ul>
-        </div>`
-      : "";
-
-    const nextStepsHTML = nextSteps.length
-      ? `
-        <div class="brief-section">
-          <div class="brief-title">🎯 Próximos Passos</div>
-          <ul class="brief-list">
-            ${nextSteps.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
-          </ul>
-        </div>`
-      : "";
-
-    container.innerHTML = `
-      <div class="result-header">
-        <div class="result-message">${escapeHtml(data.friendlyMessage || "Briefing gerado")}</div>
-        ${data.summary ? `<div class="result-summary">${escapeHtml(data.summary)}</div>` : ""}
-      </div>
-
-      <div class="brief-section">
-        <div class="brief-title">📄 Briefing Estruturado</div>
-        <div class="brief-content">${escapeHtml(data.brief || "")}</div>
-      </div>
-
-      ${missingInfoHTML}
-      ${nextStepsHTML}
-    `;
+  function setBusy(isBusy) {
+    const btn = $("processBtn");
+    if (!btn) return;
+    btn.disabled = !!isBusy;
+    btn.classList.toggle("loading", !!isBusy);
+    btn.textContent = isBusy ? "Gerando..." : (PROCESS_BUTTON_LABELS[currentModule] || "✨ Gerar com IA");
   }
 
-  // ========= ACTIONS =========
-  function collectPriorizaiPayload() {
-    const name = requireSafeText("Seu nome", $("userName")?.value, { required: true, min: 2, max: 60 });
-
-    const cards = Array.from(document.querySelectorAll(".task-card"));
-    const tasks = [];
-
-    for (let i = 0; i < cards.length; i++) {
-      const idx = i + 1;
-      const card = cards[i];
-
-      const titleRaw = cleanText(card.querySelector(".task-title")?.value);
-      const descRaw = cleanText(card.querySelector(".task-desc")?.value);
-
-      const isEmpty = !titleRaw && !descRaw;
-      if (isEmpty) continue;
-
-      const title = requireSafeText(`Tarefa ${idx} - título`, titleRaw, { required: true, min: 3, max: 80 });
-      const description = requireSafeText(`Tarefa ${idx} - descrição`, descRaw, { required: true, min: 10, max: 800 });
-
-      const impEl = card.querySelector(".task-importance");
-      const timeEl = card.querySelector(".task-time");
-
-      const importance = Number(impEl?.value);
-      const time_cost = Number(timeEl?.value);
-
-      const importance_label = impEl?.options?.[impEl.selectedIndex]?.text || "";
-      const time_label = timeEl?.options?.[timeEl.selectedIndex]?.text || "";
-
-      tasks.push({
-        title,
-        description,
-        importance,
-        time_cost,
-        importance_label,
-        time_label,
-      });
-    }
-
-    if (tasks.length < MIN_TASKS) {
-      throw new Error(`Preencha no mínimo ${MIN_TASKS} tarefas completas.`);
-    }
-
-    const { base } = getApiUrls();
-    if (!base) throw new Error("WORKER_BASE_URL está vazio. Configure a URL do seu Worker no app.js.");
-
-    return { name, method: selectedMethod, tasks };
-  }
-
-  async function processPriorizai() {
-    showLoading("Processando com IA...");
+  // ========= SUBMIT =========
+  async function onGenerate() {
     setBusy(true);
 
     try {
-      const payload = collectPriorizaiPayload();
-      const { prioritize } = getApiUrls();
-      const data = await callWorkerJson(prioritize, payload);
-      displayPriorizaiResults(data);
+      if (currentModule === "prioritize") {
+        const tasks = getTasksFromUI();
+        if (!tasks.length) {
+          showError("Inclua pelo menos 1 tarefa antes de gerar.");
+          return;
+        }
+
+        const url = WORKER_BASE_URL + MODULE_ENDPOINTS.prioritize;
+        const payload = {
+          method: selectedMethod,
+          tasks,
+        };
+
+        const res = await callWorkerJson(url, payload);
+        if (!res?.ok) throw new Error(res?.error || "Falha ao gerar priorização.");
+
+        renderPrioritizeResult(res.data || {});
+        return;
+      }
+
+      if (currentModule === "calmai") {
+        const text = safeTrim(getValue("calmText"));
+        if (!text) {
+          showError("Preencha o texto antes de gerar.");
+          return;
+        }
+
+        const url = WORKER_BASE_URL + MODULE_ENDPOINTS.calmai;
+        const payload = {
+          text,
+          tone: safeTrim(getValue("calmTone")) || "neutro",
+        };
+
+        const res = await callWorkerJson(url, payload);
+        if (!res?.ok) throw new Error(res?.error || "Falha ao gerar mensagem.");
+
+        renderCalmAIResult(res.data || {});
+        return;
+      }
+
+      if (currentModule === "briefai") {
+        const text = safeTrim(getValue("briefText"));
+        if (!text) {
+          showError("Preencha o texto antes de gerar.");
+          return;
+        }
+
+        const url = WORKER_BASE_URL + MODULE_ENDPOINTS.briefai;
+        const payload = {
+          text,
+          style: safeTrim(getValue("briefStyle")) || "executivo",
+        };
+
+        const res = await callWorkerJson(url, payload);
+        if (!res?.ok) throw new Error(res?.error || "Falha ao gerar resumo.");
+
+        renderBriefAIResult(res.data || {});
+        return;
+      }
+
+      showError("Módulo inválido.");
     } catch (err) {
-      showError(err?.message || String(err));
+      showError(err);
     } finally {
       setBusy(false);
     }
-  }
-
-  async function processCalmai() {
-    showLoading("Processando com IA...");
-    setBusy(true);
-
-    try {
-      const name = requireSafeText("Seu nome", $("calmaiUserName")?.value, { required: true, min: 2, max: 60 });
-      const text = requireSafeText("Texto", $("calmaiText")?.value, { required: true, min: 10, max: 500 });
-
-      const { calmai } = getApiUrls();
-      const data = await callWorkerJson(calmai, { name, text });
-      displayCalmaiResults(data);
-    } catch (err) {
-      showError(err?.message || String(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function processBriefai() {
-    showLoading("Gerando o brief...");
-    setBusy(true);
-
-    try {
-      const name = requireSafeText("Seu nome", $("briefaiUserName")?.value, { required: true, min: 2, max: 60 });
-      const text = requireSafeText("Seu texto", $("briefaiText")?.value, { required: true, min: 20, max: 1500 });
-
-      const { briefai } = getApiUrls();
-      const data = await callWorkerJson(briefai, { name, text });
-      displayBriefaiResults(data);
-    } catch (err) {
-      showError(err?.message || String(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function onProcessClick() {
-    if (currentModule === "priorizai") return processPriorizai();
-    if (currentModule === "calmai") return processCalmai();
-    if (currentModule === "briefai") return processBriefai();
   }
 
   // ========= INIT =========
-  function init() {
-    initModuleTabs();
-    initMethodCards();
-    initializeTasks();
-
-    $("addTaskBtn")?.addEventListener("click", addTask);
-    $("processBtn")?.addEventListener("click", onProcessClick);
-
-    // estado inicial
-    switchModule("priorizai");
+  function initProcessButton() {
+    const btn = $("processBtn");
+    if (!btn) return;
+    btn.addEventListener("click", onGenerate);
+    moveProcessButtonToModule(currentModule);
   }
 
-  document.addEventListener("DOMContentLoaded", init);
+  function initDefaults() {
+    // Tarefas iniciais
+    addTaskRow({ title: "Definir foco da semana", context: "Gestão", impact: "Alto", effort: "Baixo" });
+    addTaskRow({ title: "Revisar backlog", context: "Produto", impact: "Médio", effort: "Médio" });
+
+    // Módulo inicial
+    switchModule("prioritize");
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    initModuleTabs();
+    initMethodCards();
+    initTaskControls();
+    initProcessButton();
+    initDefaults();
+  });
 })();
