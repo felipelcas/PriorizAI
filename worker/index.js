@@ -1,16 +1,22 @@
-/* worker/src/index.js - Cloudflare Worker (API PriorizAI + CalmAI + BriefAI) */
+/* worker/src/index.js - Cloudflare Worker (PriorizAI + CalmAI + BriefAI) */
 export default {
   async fetch(request, env) {
-    const url = new URL(request.url);
-
-    // CORS básico
-    if (request.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: corsHeaders() });
-    }
-
     try {
+      const url = new URL(request.url);
+
+      if (request.method === "OPTIONS") {
+        return new Response(null, { status: 204, headers: corsHeaders() });
+      }
+
       if (request.method === "GET" && url.pathname === "/") {
-        return json({ ok: true, service: "priorizai-worker" }, 200);
+        return json(
+          {
+            ok: true,
+            service: "priorizai-worker",
+            routes: ["POST /prioritize", "POST /calmai", "POST /briefai"],
+          },
+          200
+        );
       }
 
       if (request.method === "POST" && url.pathname === "/prioritize") {
@@ -32,22 +38,41 @@ export default {
   },
 };
 
+// =========================
+// Infra
+// =========================
 function corsHeaders() {
   return {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
   };
 }
 
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data), {
+function json(body, status = 200) {
+  return new Response(JSON.stringify(body), {
     status,
     headers: {
       ...corsHeaders(),
       "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store",
     },
   });
+}
+
+async function readJson(request) {
+  let payload = null;
+  try {
+    payload = await request.json();
+  } catch {
+    throw new Error("JSON inválido.");
+  }
+
+  if (!payload || typeof payload !== "object") {
+    throw new Error("Body inválido.");
+  }
+
+  return payload;
 }
 
 function cleanText(text) {
@@ -57,11 +82,9 @@ function cleanText(text) {
 function looksLikeInjection(text) {
   const t = cleanText(text).toLowerCase();
 
-  // XSS comuns
   const xss = ["<script", "</script", "<iframe", "<object", "<embed", "<svg", "javascript:", "onerror=", "onload="];
   if (xss.some((p) => t.includes(p))) return true;
 
-  // SQLi (heurística)
   const sqli = [
     " union select",
     "drop table",
@@ -70,18 +93,18 @@ function looksLikeInjection(text) {
     "update ",
     " or 1=1",
     "' or '1'='1",
-    "\" or \"1\"=\"1",
+    '" or "1"="1',
     "--",
     "/*",
     "*/",
   ];
-  if (sqli.some((p) => t.includes(p))) return true;
 
-  return false;
+  return sqli.some((p) => t.includes(p));
 }
 
-function mustBeString(name, val, { required = false, min = 0, max = 9999 } = {}) {
-  const v = cleanText(val);
+function mustBeString(name, value, { required = false, min = 0, max = 9999 } = {}) {
+  const v = cleanText(value);
+
   if (required && !v) throw new Error(`Preencha: ${name}.`);
   if (!required && !v) return "";
 
@@ -92,65 +115,61 @@ function mustBeString(name, val, { required = false, min = 0, max = 9999 } = {})
   return v;
 }
 
-function mustBeInt(name, val, { min = 0, max = 999999 } = {}) {
-  const n = Number(val);
+function mustBeInt(name, value, { min = 0, max = 999999 } = {}) {
+  const n = Number(value);
   if (!Number.isInteger(n)) throw new Error(`${name} inválido.`);
   if (n < min || n > max) throw new Error(`${name} fora do intervalo.`);
   return n;
 }
 
-async function readJson(request) {
-  let body;
-  try {
-    body = await request.json();
-  } catch {
-    throw new Error("JSON inválido.");
-  }
-  if (!body || typeof body !== "object") throw new Error("Body inválido.");
-  return body;
-}
-
 function requireOpenAIKey(env) {
   const key = env?.OPENAI_API_KEY;
-  if (!key) throw new Error("OPENAI_API_KEY não configurada no Worker (Secrets/Vars).");
+  if (!key) throw new Error("OPENAI_API_KEY não configurada no Worker.");
   return key;
 }
 
 async function openaiChat(env, payload) {
-  const key = requireOpenAIKey(env);
+  const apiKey = requireOpenAIKey(env);
+
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${key}`,
+      Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
   });
 
   const data = await res.json().catch(() => null);
+
   if (!res.ok) {
-    const msg = data?.error?.message || "Erro na OpenAI.";
+    const msg = data?.error?.message || "Erro na chamada da OpenAI.";
     throw new Error(msg);
   }
+
   return data;
 }
 
-function stripQuestionMarksDeep(obj) {
-  const clean = (s) => cleanText(String(s || "")).replace(/\?/g, "").replace(/[\s]+$/g, "").trim();
+function removeQuestionMarksDeep(value) {
+  const strip = (s) => cleanText(String(s || "")).replace(/\?/g, "").replace(/[\s]+$/g, "").trim();
 
-  if (typeof obj === "string") return clean(obj);
+  if (typeof value === "string") return strip(value);
+  if (Array.isArray(value)) return value.map((item) => removeQuestionMarksDeep(item));
 
-  if (Array.isArray(obj)) return obj.map((x) => stripQuestionMarksDeep(x));
-
-  if (obj && typeof obj === "object") {
+  if (value && typeof value === "object") {
     const out = {};
-    for (const k of Object.keys(obj)) out[k] = stripQuestionMarksDeep(obj[k]);
+    for (const key of Object.keys(value)) {
+      out[key] = removeQuestionMarksDeep(value[key]);
+    }
     return out;
   }
 
-  return obj;
+  return value;
 }
 
+// =========================
+// /prioritize
+// =========================
 async function handlePrioritize(request, env) {
   const body = await readJson(request);
 
@@ -170,15 +189,33 @@ async function handlePrioritize(request, env) {
     return json({ error: "Envie no mínimo 3 tarefas." }, 400);
   }
 
-  const tasks = tasksRaw.map((t, idx) => {
-    const title = mustBeString(`Tarefa ${idx + 1} - título`, t.title, { required: true, min: 3, max: 80 });
-    const description = mustBeString(`Tarefa ${idx + 1} - descrição`, t.description, { required: true, min: 10, max: 800 });
+  const tasks = tasksRaw.map((task, idx) => {
+    const title = mustBeString(`Tarefa ${idx + 1} - título`, task.title, {
+      required: true,
+      min: 3,
+      max: 80,
+    });
 
-    const importance = mustBeInt(`Tarefa ${idx + 1} - importância`, t.importance, { min: 1, max: 5 });
-    const time_cost = mustBeInt(`Tarefa ${idx + 1} - tempo`, t.time_cost, { min: 1, max: 5 });
+    const description = mustBeString(`Tarefa ${idx + 1} - descrição`, task.description, {
+      required: true,
+      min: 10,
+      max: 800,
+    });
 
-    const importance_label = mustBeString(`Tarefa ${idx + 1} - rótulo importância`, t.importance_label, { required: true, min: 2, max: 40 });
-    const time_label = mustBeString(`Tarefa ${idx + 1} - rótulo tempo`, t.time_label, { required: true, min: 2, max: 40 });
+    const importance = mustBeInt(`Tarefa ${idx + 1} - importância`, task.importance, { min: 1, max: 5 });
+    const time_cost = mustBeInt(`Tarefa ${idx + 1} - tempo`, task.time_cost, { min: 1, max: 5 });
+
+    const importance_label = mustBeString(`Tarefa ${idx + 1} - rótulo importância`, task.importance_label, {
+      required: true,
+      min: 2,
+      max: 60,
+    });
+
+    const time_label = mustBeString(`Tarefa ${idx + 1} - rótulo tempo`, task.time_label, {
+      required: true,
+      min: 2,
+      max: 60,
+    });
 
     return { title, description, importance, time_cost, importance_label, time_label };
   });
@@ -187,19 +224,13 @@ async function handlePrioritize(request, env) {
 
   const system = [
     "Você é o PriorizAI.",
-    "Fale como um colega de trabalho legal, simples e direto.",
-    "O usuário tem 16 anos e pouca instrução.",
-    "Use o nome do usuário e cite as tarefas para personalizar.",
-    "Muito importante: use também a descrição para estimar tempo e complexidade e importância real.",
-    "Se a escolha do usuário estiver incoerente com a descrição, ajuste sua análise sem julgar e explique gentilmente.",
-    "Não invente fatos externos. Use só o que foi informado.",
-    "Retorne SOMENTE JSON no schema pedido.",
+    "Linguagem simples, direta e útil.",
+    "Use o nome do usuário.",
+    "Analise título, descrição, importância e tempo.",
+    "Se houver incoerência entre nota e descrição, ajuste a análise com cuidado.",
+    "Não invente fatos externos.",
+    "Retorne somente JSON válido no schema enviado.",
   ].join(" ");
-
-  const rule =
-    "Método Impacto e Esforço: faça primeiro o que é MAIS IMPORTANTE e leva MENOS TEMPO. " +
-    "Depois o que é muito importante mesmo se levar mais tempo. " +
-    "Por último, coisas pouco importantes e demoradas.";
 
   const schema = {
     name: "PriorizeResult",
@@ -223,7 +254,12 @@ async function handlePrioritize(request, env) {
               position: { type: "integer", minimum: 1, maximum: 10 },
               task_title: { type: "string" },
               explanation: { type: "string" },
-              key_points: { type: "array", minItems: 2, maxItems: 4, items: { type: "string" } },
+              key_points: {
+                type: "array",
+                minItems: 2,
+                maxItems: 4,
+                items: { type: "string" },
+              },
               tip: { type: "string" },
             },
           },
@@ -235,18 +271,13 @@ async function handlePrioritize(request, env) {
   const user = {
     name,
     method,
-    rule,
-    tasks,
-    response_rules: [
-      "Compare IMPORTÂNCIA e TEMPO escolhidos com a DESCRIÇÃO.",
-      "Se a descrição indicar tempo maior ou menor, considere isso.",
-      "Se a descrição indicar urgência, considere isso.",
-      "Retorne somente o JSON.",
-      "friendly_message: curto e personalizado.",
-      "summary: 2 a 3 frases.",
-      "Para cada tarefa: explanation (2 a 5 frases), key_points (2 a 4 itens), tip (1 frase).",
-      "estimated_time_saved_percent: inteiro 0..80, realista.",
+    rules: [
+      "Priorize por impacto e esforço.",
+      "Quanto mais importante e mais rápido, maior prioridade.",
+      "Urgência na descrição pesa na decisão.",
+      "Explique de forma simples.",
     ],
+    tasks,
   };
 
   const payload = {
@@ -256,23 +287,30 @@ async function handlePrioritize(request, env) {
       { role: "system", content: system },
       { role: "user", content: JSON.stringify(user) },
     ],
-    response_format: { type: "json_schema", json_schema: schema },
+    response_format: {
+      type: "json_schema",
+      json_schema: schema,
+    },
   };
 
   const out = await openaiChat(env, payload);
   const content = out?.choices?.[0]?.message?.content;
+
   if (!content) throw new Error("Resposta vazia da OpenAI.");
 
   let parsed;
   try {
     parsed = JSON.parse(content);
   } catch {
-    throw new Error("Não consegui ler a resposta da IA em JSON.");
+    throw new Error("Não foi possível interpretar o JSON retornado.");
   }
 
   return json(parsed, 200);
 }
 
+// =========================
+// /calmai
+// =========================
 async function handleCalmai(request, env) {
   const body = await readJson(request);
 
@@ -281,34 +319,36 @@ async function handleCalmai(request, env) {
 
   const model = env?.OPENAI_MODEL || "gpt-4o-mini";
 
-  const diva = [
-    "Você é a Diva do Caos, uma conselheira provocadora, amiga debochada e mentora perspicaz.",
-    "Fala de forma informal, cheia de gírias, provoca e cutuca os usuários, alternando entre carinho e ironia.",
-    "Sempre provoca os usuários.",
-    "Seja concisa.",
-    "Dê um conselho engraçado, inteligente, provocador e reflexivo.",
-    "NÃO invente fatos. Use só o que o usuário contou.",
-    "SEMPRE termine com UMA pergunta provocante e direta.",
+  const system = [
+    "Você é a Diva do Caos.",
+    "Tom divertido, direto e inteligente.",
+    "Entregue conselho útil com uma pitada de humor.",
+    "Não invente fatos.",
+    "Termine com uma pergunta curta e provocante.",
   ].join(" ");
 
-  const userText = `Nome: ${name}\nProblema: ${text}`;
+  const prompt = `Nome: ${name}\nProblema: ${text}`;
 
   const payload = {
     model,
     temperature: 0.9,
     messages: [
-      { role: "system", content: diva },
-      { role: "user", content: userText },
+      { role: "system", content: system },
+      { role: "user", content: prompt },
     ],
   };
 
   const out = await openaiChat(env, payload);
-  const reply = out?.choices?.[0]?.message?.content?.trim();
+  const reply = cleanText(out?.choices?.[0]?.message?.content);
+
   if (!reply) throw new Error("Resposta vazia da OpenAI.");
 
   return json({ reply }, 200);
 }
 
+// =========================
+// /briefai
+// =========================
 async function handleBriefai(request, env) {
   const body = await readJson(request);
 
@@ -319,14 +359,10 @@ async function handleBriefai(request, env) {
 
   const system = [
     "Você é o BriefAI.",
-    "Linguagem simples, direta e objetiva. Sem termos difíceis.",
-    "Não faça perguntas ao usuário.",
-    "Não use o caractere de interrogação.",
-    "Não termine com interrogação.",
-    "Não invente fatos externos. Use só o texto fornecido.",
-    "Não peça dados sensíveis.",
-    "Se o texto parecer ter dados sensíveis, inclua um aviso curto para não colar esse tipo de informação.",
-    "Retorne SOMENTE JSON no schema pedido.",
+    "Use linguagem simples, direta e objetiva.",
+    "Não use perguntas e não use ponto de interrogação.",
+    "Não invente fatos externos.",
+    "Retorne somente JSON no schema definido.",
   ].join(" ");
 
   const schema = {
@@ -339,8 +375,18 @@ async function handleBriefai(request, env) {
         friendlyMessage: { type: "string" },
         summary: { type: "string" },
         brief: { type: "string" },
-        missingInfo: { type: "array", items: { type: "string" }, minItems: 0, maxItems: 10 },
-        nextSteps: { type: "array", items: { type: "string" }, minItems: 0, maxItems: 10 },
+        missingInfo: {
+          type: "array",
+          minItems: 0,
+          maxItems: 10,
+          items: { type: "string" },
+        },
+        nextSteps: {
+          type: "array",
+          minItems: 0,
+          maxItems: 10,
+          items: { type: "string" },
+        },
       },
     },
   };
@@ -349,12 +395,11 @@ async function handleBriefai(request, env) {
     name,
     text,
     output_rules: [
-      "friendlyMessage: 1 a 2 frases, personalizado com o nome.",
-      "summary: 4 a 7 linhas curtas, fáceis de ler.",
-      "brief: deve ter blocos fixos com esses títulos: Contexto, Objetivo, O que está acontecendo, Restrições e riscos, Plano de ação curto.",
-      "missingInfo: lista de pontos ausentes, sem perguntas.",
-      "nextSteps: lista objetiva de próximos passos, sem perguntas.",
-      "Não usar interrogação e não escrever frases em formato de pergunta.",
+      "friendlyMessage com 1 a 2 frases.",
+      "summary em 4 a 7 linhas curtas.",
+      "brief com blocos: Contexto, Objetivo, O que está acontecendo, Restrições e riscos, Plano de ação curto.",
+      "missingInfo sem perguntas.",
+      "nextSteps sem perguntas.",
     ],
   };
 
@@ -365,22 +410,25 @@ async function handleBriefai(request, env) {
       { role: "system", content: system },
       { role: "user", content: JSON.stringify(user) },
     ],
-    response_format: { type: "json_schema", json_schema: schema },
+    response_format: {
+      type: "json_schema",
+      json_schema: schema,
+    },
   };
 
   const out = await openaiChat(env, payload);
   const content = out?.choices?.[0]?.message?.content;
+
   if (!content) throw new Error("Resposta vazia da OpenAI.");
 
   let parsed;
   try {
     parsed = JSON.parse(content);
   } catch {
-    throw new Error("Não consegui ler a resposta da IA em JSON.");
+    throw new Error("Não foi possível interpretar o JSON retornado.");
   }
 
-  // Enforce: sem interrogação
-  parsed = stripQuestionMarksDeep(parsed);
+  parsed = removeQuestionMarksDeep(parsed);
 
   return json(parsed, 200);
 }
