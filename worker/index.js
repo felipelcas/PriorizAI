@@ -272,9 +272,7 @@ async function handleCalmai(request, env) {
     "SEMPRE termine com UMA pergunta provocante e direta.",
   ].join(" ");
 
-  const userText = name
-    ? `Nome (opcional): ${name}\nProblema: ${text}`
-    : `Problema: ${text}`;
+  const userText = `Nome: ${name}\nProblema: ${text}`;
 
   const payload = {
     model,
