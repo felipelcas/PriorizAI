@@ -594,29 +594,33 @@
     container.appendChild(header);
   }
 
-  async function onCalmClick() {
-    scrollToTop();
+async function onCalmClick() {
+  scrollToTop();
 
-    const container = $("calmResultsContainer");
-    renderLoading(container, "A Diva está pensando...");
+  const container = $("calmResultsContainer");
+  renderLoading(container, "A Diva está pensando...");
 
-    try {
-      const name = requireSafeText("Seu nome (opcional)", $("calmName").value, { required: false, min: 0, max: 60 });
+  try {
+    const name = requireSafeText("Seu nome", $("calmName").value, {
+      required: true,
+      min: 2,
+      max: 60,
+    });
 
-      const text = requireSafeText("Conta seu problema", $("calmText").value, {
-        required: true,
-        min: 10,
-        max: 500,
-      });
+    const text = requireSafeText("Conta seu problema", $("calmText").value, {
+      required: true,
+      min: 10,
+      max: 500,
+    });
 
-      if (!BASE) throw new Error("WORKER_BASE_URL está vazio. Configure a URL do seu Worker no app.js.");
+    if (!BASE) throw new Error("WORKER_BASE_URL está vazio. Configure a URL do seu Worker no app.js.");
 
-      const data = await callWorkerCalmai({ name, text });
-      renderCalmaiResult(data.reply);
-    } catch (err) {
-      renderError(container, err.message || String(err));
-    }
+    const data = await callWorkerCalmai({ name, text });
+    renderCalmaiResult(data.reply);
+  } catch (err) {
+    renderError(container, err.message || String(err));
   }
+}
 
   // ========= INIT =========
   function initTabs() {
