@@ -257,7 +257,7 @@ async function handlePrioritize(request, env) {
 async function handleCalmai(request, env) {
   const body = await readJson(request);
 
-  const name = mustBeString("Seu nome", body.name, { required: false, min: 0, max: 60 });
+  const name = mustBeString("Seu nome", body.name, { required: true, min: 2, max: 60 });
   const text = mustBeString("Texto", body.text, { required: true, min: 10, max: 500 });
 
   const model = env?.OPENAI_MODEL || "gpt-4o-mini";
