@@ -7,13 +7,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=Playfair+Display:wght@700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    
+
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         :root {
             /* Golden/Bronze palette */
@@ -49,11 +45,9 @@
         body::before {
             content: '';
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: 
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background:
                 radial-gradient(circle at 15% 20%, rgba(212, 165, 116, 0.06) 0%, transparent 40%),
                 radial-gradient(circle at 85% 80%, rgba(201, 147, 74, 0.05) 0%, transparent 40%),
                 radial-gradient(circle at 50% 50%, rgba(205, 127, 50, 0.03) 0%, transparent 60%);
@@ -65,11 +59,9 @@
         body::after {
             content: '';
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image: 
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-image:
                 linear-gradient(rgba(212, 165, 116, 0.02) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(212, 165, 116, 0.02) 1px, transparent 1px);
             background-size: 50px 50px;
@@ -183,19 +175,14 @@
         .tab-btn::before {
             content: '';
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
             background: linear-gradient(135deg, var(--accent-primary), var(--accent-bronze));
             opacity: 0;
             transition: opacity 0.3s ease;
         }
 
-        .tab-btn span {
-            position: relative;
-            z-index: 1;
-        }
+        .tab-btn span { position: relative; z-index: 1; }
 
         .tab-btn.active {
             background: linear-gradient(135deg, var(--accent-primary), var(--accent-bronze));
@@ -205,10 +192,7 @@
             font-weight: 700;
         }
 
-        .tab-btn:disabled {
-            opacity: 0.3;
-            cursor: not-allowed;
-        }
+        .tab-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
         .tab-btn:not(:disabled):not(.active):hover {
             background: var(--bg-card-hover);
@@ -232,7 +216,7 @@
             border: 1px solid var(--border-color);
             border-radius: 24px;
             padding: 2rem;
-            box-shadow: 
+            box-shadow:
                 0 20px 60px rgba(0, 0, 0, 0.5),
                 inset 0 1px 0 rgba(212, 165, 116, 0.1);
             transition: all 0.3s ease;
@@ -240,7 +224,7 @@
 
         .card:hover {
             border-color: var(--border-hover);
-            box-shadow: 
+            box-shadow:
                 0 24px 70px rgba(0, 0, 0, 0.6),
                 0 0 40px rgba(212, 165, 116, 0.08),
                 inset 0 1px 0 rgba(212, 165, 116, 0.15);
@@ -267,9 +251,7 @@
         }
 
         /* Form Styles */
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
+        .form-group { margin-bottom: 1.5rem; }
 
         label {
             display: block;
@@ -279,14 +261,9 @@
             font-size: 0.95rem;
         }
 
-        .required {
-            color: var(--error);
-            margin-left: 0.25rem;
-        }
+        .required { color: var(--error); margin-left: 0.25rem; }
 
-        input[type="text"],
-        textarea,
-        select {
+        input[type="text"], textarea, select {
             width: 100%;
             padding: 0.875rem 1.125rem;
             background: rgba(0, 0, 0, 0.4);
@@ -299,23 +276,15 @@
             outline: none;
         }
 
-        input[type="text"]:focus,
-        textarea:focus,
-        select:focus {
+        input[type="text"]:focus, textarea:focus, select:focus {
             border-color: var(--accent-primary);
             background: rgba(0, 0, 0, 0.6);
             box-shadow: 0 0 0 3px var(--accent-glow);
         }
 
-        textarea {
-            resize: vertical;
-            min-height: 100px;
-        }
+        textarea { resize: vertical; min-height: 100px; }
 
-        input::placeholder,
-        textarea::placeholder {
-            color: var(--text-muted);
-        }
+        input::placeholder, textarea::placeholder { color: var(--text-muted); }
 
         /* Method Cards */
         .method-grid {
@@ -342,10 +311,7 @@
             box-shadow: 0 0 20px var(--accent-glow), inset 0 0 20px rgba(212, 165, 116, 0.05);
         }
 
-        .method-card.disabled {
-            opacity: 0.3;
-            cursor: not-allowed;
-        }
+        .method-card.disabled { opacity: 0.3; cursor: not-allowed; }
 
         .method-card:not(.disabled):not(.active):hover {
             border-color: var(--border-hover);
@@ -363,10 +329,7 @@
             color: var(--text-primary);
         }
 
-        .method-desc {
-            font-size: 0.8125rem;
-            color: var(--text-muted);
-        }
+        .method-desc { font-size: 0.8125rem; color: var(--text-muted); }
 
         .tooltip-icon {
             display: inline-flex;
@@ -390,15 +353,11 @@
             padding-right: 0.5rem;
         }
 
-        .tasks-container::-webkit-scrollbar {
-            width: 6px;
-        }
-
+        .tasks-container::-webkit-scrollbar { width: 6px; }
         .tasks-container::-webkit-scrollbar-track {
             background: rgba(0, 0, 0, 0.3);
             border-radius: 3px;
         }
-
         .tasks-container::-webkit-scrollbar-thumb {
             background: var(--accent-primary);
             border-radius: 3px;
@@ -422,9 +381,7 @@
             box-shadow: 0 4px 12px rgba(212, 165, 116, 0.15);
         }
 
-        .task-item:nth-child(even) {
-            border-left-color: var(--accent-bronze);
-        }
+        .task-item:nth-child(even) { border-left-color: var(--accent-bronze); }
 
         .task-header {
             font-size: 0.8125rem;
@@ -491,25 +448,17 @@
         .btn::before {
             content: '';
             position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
+            top: 50%; left: 50%;
+            width: 0; height: 0;
             border-radius: 50%;
             background: rgba(255, 255, 255, 0.15);
             transform: translate(-50%, -50%);
             transition: width 0.6s, height 0.6s;
         }
 
-        .btn:hover::before {
-            width: 300px;
-            height: 300px;
-        }
+        .btn:hover::before { width: 300px; height: 300px; }
 
-        .btn span {
-            position: relative;
-            z-index: 1;
-        }
+        .btn span { position: relative; z-index: 1; }
 
         .btn-primary {
             background: linear-gradient(135deg, var(--accent-primary), var(--accent-bronze));
@@ -523,9 +472,7 @@
             box-shadow: 0 8px 30px var(--accent-glow), 0 4px 16px rgba(212, 165, 116, 0.3);
         }
 
-        .btn-primary:active:not(:disabled) {
-            transform: translateY(0);
-        }
+        .btn-primary:active:not(:disabled) { transform: translateY(0); }
 
         .btn-secondary {
             background: var(--bg-card);
@@ -540,20 +487,11 @@
             box-shadow: 0 4px 12px rgba(212, 165, 116, 0.1);
         }
 
-        .btn-secondary:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
+        .btn-secondary:disabled { opacity: 0.4; cursor: not-allowed; }
 
-        .btn-full {
-            width: 100%;
-        }
+        .btn-full { width: 100%; }
 
-        .btn-group {
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-        }
+        .btn-group { display: flex; gap: 1rem; align-items: center; }
 
         .task-counter {
             font-size: 0.875rem;
@@ -594,9 +532,7 @@
             box-shadow: 0 0 20px rgba(212, 165, 116, 0.2);
         }
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
         .loading-text {
             color: var(--text-secondary);
@@ -671,15 +607,9 @@
             color: var(--text-secondary);
         }
 
-        .order-table tbody tr:hover {
-            background: rgba(212, 165, 116, 0.05);
-        }
+        .order-table tbody tr:hover { background: rgba(212, 165, 116, 0.05); }
 
-        .ranked-list {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
+        .ranked-list { display: flex; flex-direction: column; gap: 1rem; }
 
         .ranked-item {
             background: linear-gradient(135deg, rgba(26, 26, 26, 0.6), rgba(20, 20, 20, 0.6));
@@ -697,16 +627,12 @@
             box-shadow: 0 6px 20px rgba(212, 165, 116, 0.15);
         }
 
-        .ranked-item:nth-child(1) { 
+        .ranked-item:nth-child(1) {
             border-left-color: #f59e0b;
             box-shadow: 0 4px 16px rgba(245, 158, 11, 0.2);
         }
-        .ranked-item:nth-child(2) { 
-            border-left-color: #94a3b8;
-        }
-        .ranked-item:nth-child(3) { 
-            border-left-color: #cd7f32;
-        }
+        .ranked-item:nth-child(2) { border-left-color: #94a3b8; }
+        .ranked-item:nth-child(3) { border-left-color: #cd7f32; }
 
         .ranked-header {
             display: flex;
@@ -771,78 +697,58 @@
             backdrop-filter: blur(5px);
         }
 
+        /* Footer */
+        .footer {
+            margin-top: 2.5rem;
+            padding: 1.25rem 0 0.25rem;
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+        .footer .line2 { margin-top: 0.25rem; }
+        .footer a {
+            color: var(--text-secondary);
+            text-decoration: none;
+        }
+        .footer a:hover {
+            color: var(--accent-primary);
+            text-decoration: underline;
+        }
+
         /* Animations */
         @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         @keyframes fadeInDown {
-            from {
-                opacity: 0;
-                transform: translateY(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateX(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
         }
 
         /* Responsive */
         @media (max-width: 1024px) {
-            .main-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .method-grid {
-                grid-template-columns: 1fr;
-            }
+            .main-grid { grid-template-columns: 1fr; }
+            .method-grid { grid-template-columns: 1fr; }
         }
 
         @media (max-width: 640px) {
-            .container {
-                padding: 1rem;
-            }
-
-            .logo {
-                font-size: 2.75rem;
-            }
-
-            .card {
-                padding: 1.5rem;
-            }
-
-            .tab-nav {
-                grid-template-columns: 1fr;
-            }
-
-            .two-col {
-                grid-template-columns: 1fr;
-            }
-
-            .rank-number {
-                font-size: 2rem;
-            }
+            .container { padding: 1rem; }
+            .logo { font-size: 2.75rem; }
+            .card { padding: 1.5rem; }
+            .tab-nav { grid-template-columns: 1fr; }
+            .two-col { grid-template-columns: 1fr; }
+            .rank-number { font-size: 2rem; }
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <!-- Header -->
@@ -884,6 +790,7 @@
                 <div class="form-group">
                     <label>Método de priorização</label>
                     <p class="hint-text">Por enquanto, só o primeiro está liberado.</p>
+
                     <div class="method-grid">
                         <div class="method-card active" data-method="IMPACT_EFFORT">
                             <div class="method-name">
@@ -892,6 +799,7 @@
                             </div>
                             <div class="method-desc">Foco no que importa mais</div>
                         </div>
+
                         <div class="method-card disabled">
                             <div class="method-name">
                                 RICE
@@ -899,6 +807,7 @@
                             </div>
                             <div class="method-desc">Em breve</div>
                         </div>
+
                         <div class="method-card disabled">
                             <div class="method-name">
                                 MoSCoW
@@ -906,6 +815,7 @@
                             </div>
                             <div class="method-desc">Em breve</div>
                         </div>
+
                         <div class="method-card disabled">
                             <div class="method-name">
                                 GUT
@@ -921,13 +831,12 @@
                 <!-- Tasks Section -->
                 <h2 class="card-title">Tarefas</h2>
                 <p class="hint-text">Dica: escreva prazo, quem depende, e o que acontece se atrasar. Quanto mais claro, melhor.</p>
+
                 <div class="info-banner">
                     Preencha no mínimo 3 tarefas completas.
                 </div>
 
-                <div class="tasks-container" id="tasksContainer">
-                    <!-- Task items will be added here dynamically -->
-                </div>
+                <div class="tasks-container" id="tasksContainer"></div>
 
                 <div class="btn-group" style="margin-top: 1rem;">
                     <button class="btn btn-secondary" id="addTaskBtn">
@@ -952,13 +861,23 @@
                 </div>
             </div>
         </div>
+
+        <!-- Footer -->
+        <footer class="footer" aria-label="Rodapé">
+            <div>2025 - Felipe Castelão - Todos os direitos reservados</div>
+            <div class="line2">
+                Desenvolvido por
+                <a href="https://www.linkedin.com/in/felipecastelao/" target="_blank" rel="noopener noreferrer">
+                    <strong>Felipe Castelão</strong>
+                </a>
+            </div>
+        </footer>
     </div>
 
     <script>
-        // Config: URL do Cloudflare Worker
+        // Config: URL do Cloudflare Worker (sem barra no final)
         const WORKER_BASE_URL = "https://priorizai.felipelcas.workers.dev/";
 
-        // Helper: normaliza a URL
         function normalizeBaseUrl(url) {
             if (!url || typeof url !== 'string') return '';
             url = url.trim();
@@ -966,29 +885,23 @@
             return url;
         }
 
-        // State
         let taskCount = 3;
         const MAX_TASKS = 10;
 
-        // Initialize tasks
         function initializeTasks() {
             const container = document.getElementById('tasksContainer');
             container.innerHTML = '';
-            
-            for (let i = 1; i <= taskCount; i++) {
-                addTaskElement(i);
-            }
+            for (let i = 1; i <= taskCount; i++) addTaskElement(i);
             updateTaskCounter();
         }
 
-        // Add task element
         function addTaskElement(index) {
             const container = document.getElementById('tasksContainer');
             const taskItem = document.createElement('div');
             taskItem.className = 'task-item';
             taskItem.innerHTML = `
                 <div class="task-header">Tarefa ${index}</div>
-                
+
                 <div class="form-group">
                     <label>O que você vai fazer <span class="required">*</span></label>
                     <input type="text" class="task-title" placeholder="Ex.: Enviar planilha para o fornecedor" required>
@@ -1032,13 +945,11 @@
             container.appendChild(taskItem);
         }
 
-        // Update task counter
         function updateTaskCounter() {
             document.getElementById('taskCounter').textContent = `${taskCount}/${MAX_TASKS}`;
             document.getElementById('addTaskBtn').disabled = taskCount >= MAX_TASKS;
         }
 
-        // Add task button
         document.getElementById('addTaskBtn').addEventListener('click', () => {
             if (taskCount < MAX_TASKS) {
                 taskCount++;
@@ -1052,7 +963,6 @@
             return active ? (active.dataset.method || 'IMPACT_EFFORT') : 'IMPACT_EFFORT';
         }
 
-        // Validate form
         function validateForm() {
             const userName = document.getElementById('userName').value.trim();
             if (!userName) {
@@ -1075,7 +985,6 @@
             return true;
         }
 
-        // Collect form data
         function collectFormData() {
             const userName = document.getElementById('userName').value.trim();
             const method = getSelectedMethod();
@@ -1096,21 +1005,13 @@
                     const importanceLabel = impEl.options[impEl.selectedIndex]?.text || '';
                     const timeLabel = timeEl.options[timeEl.selectedIndex]?.text || '';
 
-                    return {
-                        title,
-                        description,
-                        importance,
-                        time,
-                        importanceLabel,
-                        timeLabel
-                    };
+                    return { title, description, importance, time, importanceLabel, timeLabel };
                 })
                 .filter(task => task.title && task.description);
 
             return { userName, method, tasks };
         }
 
-        // Show loading state
         function showLoading() {
             const container = document.getElementById('resultsContainer');
             container.innerHTML = `
@@ -1133,7 +1034,7 @@
         async function callWorkerPrioritize(data) {
             const base = normalizeBaseUrl(WORKER_BASE_URL);
             if (!base || base === "A_URL_DO_SEU_WORKER") {
-                throw new Error('Você ainda não configurou a URL do Worker no index.html (WORKER_BASE_URL).');
+                throw new Error('Você ainda não configurou a URL do Worker (WORKER_BASE_URL).');
             }
 
             const url = `${base}/prioritize`;
@@ -1151,18 +1052,15 @@
                 const msg = (json && (json.error || json.message)) ? (json.error || json.message) : text;
                 throw new Error(msg || `Erro HTTP ${resp.status}`);
             }
-
             return json || {};
         }
 
-        // Normalize results shape
         function normalizeResults(raw) {
             const friendlyMessage = raw.friendlyMessage ?? raw.friendly_message ?? raw.friendlyMessageText ?? '';
             const summary = raw.summary ?? raw.resumo ?? '';
             const estimatedTimeSaved =
                 raw.estimatedTimeSaved ??
                 raw.estimated_time_saved_percent ??
-                raw.estimated_time_saved ??
                 raw.estimatedTimeSavedPercent ??
                 null;
 
@@ -1179,7 +1077,6 @@
             return { friendlyMessage, summary, estimatedTimeSaved, rankedTasks };
         }
 
-        // Display results
         function displayResults(rawResults) {
             const container = document.getElementById('resultsContainer');
             const results = normalizeResults(rawResults);
@@ -1231,9 +1128,7 @@
                     ${results.summary ? `<div class="result-summary">${escapeHtml(results.summary)}</div>` : ''}
                     ${statHTML}
                 </div>
-
                 ${orderTableHTML}
-
                 <div class="ranked-list">
                     ${rankedListHTML || `
                         <div class="result-empty">
@@ -1244,7 +1139,6 @@
                 </div>
             `;
 
-            // Scroll to results on mobile
             if (window.innerWidth <= 1024) {
                 container.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
@@ -1265,11 +1159,9 @@
             btn.style.opacity = isBusy ? '0.75' : '1';
         }
 
-        // Prioritize button click
         document.getElementById('prioritizeBtn').addEventListener('click', async () => {
             if (!validateForm()) return;
 
-            // Sobe para o topo
             window.scrollTo({ top: 0, behavior: 'smooth' });
 
             const formData = collectFormData();
@@ -1286,7 +1178,6 @@
             }
         });
 
-        // Method card selection (only enabled ones can toggle)
         document.querySelectorAll('.method-card:not(.disabled)').forEach(card => {
             card.addEventListener('click', () => {
                 document.querySelectorAll('.method-card').forEach(c => c.classList.remove('active'));
@@ -1294,7 +1185,6 @@
             });
         });
 
-        // Initialize
         initializeTasks();
     </script>
 </body>
