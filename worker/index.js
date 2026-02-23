@@ -448,6 +448,7 @@ async function handleBriefAI(request, env) {
 "Retorne SOMENTE JSON no schema pedido.",
 "Siga exatamente o schema informado pelo usuário, sem campos extras e sem texto fora do JSON.",
 "Se algum dado estiver ausente, preencha com null ou vazio, conforme o schema permitir."
+"SEMPRE termine com UMA pergunta inteligente sobre o tema, direta e curta.",
   ].join(" ");
 
   const jsonSchema = {
