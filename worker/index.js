@@ -34,7 +34,7 @@ export default {
 
       return json({ error: "Rota não encontrada." }, 404);
     } catch (err) {
-      return json({ error: err?.message || "Erro inesperado." }, 1000);
+      return json({ error: err?.message || "Erro inesperado." }, 500);
     }
   },
 };
