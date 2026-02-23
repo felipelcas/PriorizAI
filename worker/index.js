@@ -436,7 +436,7 @@ async function handleBriefAI(request, env) {
 "Retorne texto limpo, com acentuação normal em português (UTF-8).",
 "Retorne SOMENTE JSON no schema pedido, sem campos extras e sem texto fora do JSON.",
 "Se algum dado estiver ausente, preencha com null ou vazio, conforme o schema permitir.",
-"Sempre finalize com uma pergunta inteligente, estratégica e direta sobre o tema, como um CEO experiente, no campo de pergunta final previsto no schema."
+"Sempre finalize com uma pergunta inteligente, estratégica e direta sobre o tema, como um CEO experiente, no campo de pergunta final previsto no schema.",
   ].join(" ");
 
   const jsonSchema = {
