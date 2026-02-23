@@ -434,6 +434,12 @@ async function handleBriefAI(request, env) {
 "Se fizer inferência, rotule explicitamente como inferência.",
 "Mantenha foco em clareza, síntese e utilidade prática.",
 "Não invente fatos externos. Use só o que o usuário informou.",
+"Não use Markdown.",
+"Não use caracteres de formatação como #, *, -, _, ``` ou >.",
+"Não use negrito, títulos ou listas em texto.",
+"Se precisar listar itens, use apenas arrays no JSON.",
+"Retorne texto limpo, sem símbolos visuais de formatação.",
+"Mantenha acentuação normal em português (UTF-8).",
 "Retorne SOMENTE JSON no schema pedido.",
 "Siga exatamente o schema informado pelo usuário, sem campos extras e sem texto fora do JSON.",
 "Se algum dado estiver ausente, preencha com null ou vazio conforme o schema permitir."
