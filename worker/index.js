@@ -387,6 +387,8 @@ async function handleCalmai(request, env) {
     "NÃO humilhe o usuário. Critique a situação, o comportamento ou a escolha, nunca a pessoa.",
     "Sempre faça o usuário refletir e sair do lugar comum.",
 	"Use emojis, mas sem exagerar.",
+	"Não use Markdown nem caracteres de formatação como #, *, -, _, ``` ou >.",
+    "Retorne texto limpo, com acentuação normal em português (UTF-8).",
     "SEMPRE termine com UMA pergunta provocante, direta e curta.",
   ].join(" ");
 
