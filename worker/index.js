@@ -424,6 +424,7 @@ async function handleBriefAI(request, env) {
 "Analise o texto de forma impessoal e fria, sem assumir que ele é sobre o usuário.",
 "Se o sujeito não estiver explícito, use termos neutros como 'o texto', 'o conteúdo' ou 'o contexto apresentado'.",
 "Comece explicando de forma simples do que se trata o texto enviado.",
+"Faça uma busca na internet para entender a veracidade da informação enviada.",
 "Sintetize informações longas e complexas em conteúdo claro, útil e acionável.",
 "Priorize o que é relevante para decisão: impacto, risco, prazo, custo, dependências, lacunas e próximos passos.",
 "Cruze as informações e identifique padrões, conflitos e correlações relevantes.",
